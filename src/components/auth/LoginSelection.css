@@ -1,0 +1,158 @@
+/* Scoped styles for LoginSelection component */
+.ls-root{
+  width:100%;
+  min-height:80vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:3rem 1.5rem;
+  background: linear-gradient(135deg,#f0f9ff 0%, #ffffff 100%);
+}
+
+.ls-container{
+  width:100%;
+  max-width:1100px;
+  margin:0 auto;
+}
+
+.ls-header{
+  text-align:center;
+  margin-bottom:1.5rem;
+}
+
+.ls-title{
+  color:#07284a;
+  font-size:1.75rem;
+  font-weight:700;
+  margin:0;
+}
+
+.ls-sub{
+  margin-top:0.5rem;
+  color:#475569;
+}
+
+.ls-grid{
+  display:grid;
+  grid-template-columns:1fr 120px 1fr;
+  gap:1.25rem;
+  align-items:center;
+}
+
+.ls-card{
+  background:#fff;
+  border-radius:1rem;
+  padding:1.5rem;
+  box-shadow:0 6px 18px rgba(11,43,94,0.06);
+  border:1px solid #eef2f7;
+  display:flex;
+  flex-direction:column;
+  gap:1rem;
+  transition:transform .25s ease, box-shadow .25s ease;
+}
+
+.ls-card:hover{
+  transform:translateY(-6px);
+  box-shadow:0 18px 40px rgba(11,43,94,0.10);
+}
+
+.ls-card-top{
+  display:flex;
+  align-items:center;
+  gap:1rem;
+}
+
+.ls-icon{
+  width:56px;
+  height:56px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:12px;
+  font-size:1.35rem;
+}
+
+.ls-icon.donor{ background:linear-gradient(135deg,#34d399,#059669); color:white }
+.ls-icon.recipient{ background:linear-gradient(135deg,#60a5fa,#2563eb); color:white }
+
+.ls-card-title{
+  margin:0;
+  color:#0b2b5e;
+  font-size:1.25rem;
+  font-weight:700;
+}
+
+.ls-card-desc{
+  color:#475569;
+  line-height:1.45;
+  margin:0;
+}
+
+.ls-actions{
+  margin-top:auto;
+  display:flex;
+  align-items:center;
+  gap:0.75rem;
+}
+
+.ls-btn{
+  padding:0.8rem 1rem;
+  border-radius:0.75rem;
+  font-weight:600;
+  border:none;
+  cursor:pointer;
+}
+
+.ls-btn-primary{
+  background:linear-gradient(90deg,#10b981,#059669);
+  color:white;
+  box-shadow:0 6px 18px rgba(5,150,105,0.18);
+  transition:transform .18s ease, box-shadow .18s ease, opacity .12s ease;
+}
+.ls-btn-primary:active{ transform:scale(.98) }
+
+.ls-link{
+  color:#0b2b5e;
+  text-decoration:none;
+  font-weight:600;
+  padding:0.5rem 0.75rem;
+}
+.ls-link:hover{ text-decoration:underline }
+
+.ls-center{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+}
+
+.ls-divider{
+  width:4px;
+  height:220px;
+  background:linear-gradient(180deg,#bbf7d0,#34d399);
+  border-radius:8px;
+}
+
+.ls-badge{
+  margin-top:1rem;
+  background:linear-gradient(90deg,#059669,#047857);
+  color:white;
+  padding:0.5rem 1rem;
+  border-radius:999px;
+  font-weight:700;
+  box-shadow:0 10px 30px rgba(5,150,105,0.12);
+}
+
+/* Responsive */
+@media (max-width:900px){
+  .ls-grid{ grid-template-columns:1fr; }
+  .ls-center{ order:3; margin:0.75rem 0; }
+  .ls-divider{ height:8px; width:100%; border-radius:6px }
+  .ls-card{ padding:1.25rem }
+}
+
+@media (max-width:480px){
+  .ls-title{ font-size:1.25rem }
+  .ls-card-title{ font-size:1.1rem }
+  .ls-icon{ width:48px; height:48px }
+}
