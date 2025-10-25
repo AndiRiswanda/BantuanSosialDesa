@@ -1,6 +1,19 @@
+import { useRef } from "react";
 import ScheduleCard from "../card/ScheduleCard";
 
 export default function PenyaluranPage() {
+  const trackRef = useRef(null);
+
+  const scrollBySlide = (direction = 1) => {
+    const track = trackRef.current;
+    if (!track) return;
+    const firstSlide = track.querySelector('[data-slide="true"]');
+    const gap = parseFloat(getComputedStyle(track).gap || "0");
+    const slideWidth = firstSlide
+      ? firstSlide.getBoundingClientRect().width + gap
+      : track.clientWidth * 0.9;
+    track.scrollBy({ left: direction * slideWidth, behavior: "smooth" });
+  };
   const schedules = [
     {
       title: "Bantuan Langsung Tunai (BLT)",
@@ -49,19 +62,66 @@ export default function PenyaluranPage() {
   ];
 
   return (
-    <div className="bg-[#E6EFFA] min-h-screen px-6 md:px-20 py-10">
+    <div className="bg-[#E6EFFA] min-h-screen px-6 md:px-20 py-10 overflow-x-hidden">
       <div className="text-center mb-8">
         <div className="inline-block bg-white shadow-md border border-blue-200 px-8 py-3 rounded-lg">
-          <h1 className="text-[#0B2B5E] font-semibold text-xl">
+          <h1 className="text-[#0B2B5E] font-semibold text-xl md:text-2xl">
             Detail Jadwal Penyaluran <br />
             <span className="text-green-700">Program Bantuan Desa</span>
           </h1>
         </div>
       </div>
 
-      {schedules.map((item, i) => (
-        <ScheduleCard key={i} {...item} />
-      ))}
+      <div className="relative" role="region" aria-label="Carousel Jadwal Penyaluran">
+        {/* Prev Button */}
+        <button
+          type="button"
+          aria-label="Sebelumnya"
+          onClick={() => scrollBySlide(-1)}
+          className="hidden sm:flex group items-center justify-center absolute left-2 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full border border-slate-200 bg-white/90 shadow cursor-pointer transition-all duration-200 ease-out hover:bg-white hover:shadow-lg hover:border-green-300 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+        >
+          {/* Left chevron (inline SVG to avoid new deps) */}
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5 text-slate-700 transition-colors duration-200 group-hover:text-green-600">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+
+        {/* Track */}
+        <div
+          ref={trackRef}
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "ArrowLeft") scrollBySlide(-1);
+            if (e.key === "ArrowRight") scrollBySlide(1);
+          }}
+          className="flex gap-4 overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-pl-4 md:scroll-pl-6 outline-none"
+          style={{ touchAction: "pan-x", WebkitOverflowScrolling: "touch" }}
+          aria-label="Daftar kartu jadwal, geser untuk melihat lainnya"
+        >
+          {schedules.map((item, i) => (
+            <div
+              key={i}
+              data-slide="true"
+              className="snap-center shrink-0 min-w-[72%] sm:min-w-[80%] md:min-w-[50%] lg:min-w-[40%] xl:min-w-[33%] 2xl:min-w-[28%]"
+            >
+              <ScheduleCard {...item} />
+            </div>
+          ))}
+        </div>
+
+        {/* Next Button */}
+        <button
+          type="button"
+          aria-label="Berikutnya"
+          onClick={() => scrollBySlide(1)}
+          className="hidden sm:flex group items-center justify-center absolute right-2 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full border border-slate-200 bg-white/90 shadow cursor-pointer transition-all duration-200 ease-out hover:bg-white hover:shadow-lg hover:border-green-300 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+        >
+          {/* Right chevron */}
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5 text-slate-700 transition-colors duration-200 group-hover:text-green-600">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }

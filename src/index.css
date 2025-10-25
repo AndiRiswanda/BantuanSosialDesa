@@ -7,3 +7,12 @@ body,
   margin: 0;
   padding: 0;
 }
+
+/* Hide native scrollbars but keep scroll/swipe behavior */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}

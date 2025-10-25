@@ -127,8 +127,8 @@ export default function FeaturesSection() {
           </table>
         </div>
 
-        <div className="mt-6 flex justify-end">
-          <button className="bg-green-600 text-white px-8 py-3 rounded-lg font-semibold shadow-sm hover:bg-green-700 hover:shadow-lg hover:scale-105 transition-all duration-300 active:scale-95">
+        <div className="mt-6 flex justify-end mx-10">
+          <button className="bg-green-600 text-white px-5 py-3 rounded-lg font-semibold shadow-sm hover:bg-green-700 hover:shadow-lg hover:scale-105 transition-all duration-300 active:scale-95">
             Lihat Detail Jadwal Disini...
           </button>
         </div>

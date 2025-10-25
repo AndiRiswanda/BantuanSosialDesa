@@ -12,6 +12,10 @@ import RecipientRegisterPage from "./components/auth/recipient/RecipientRegister
 import DonorDashboard from "./components/pages/donor/DonorDashboard";
 import DonorPrograms from "./components/pages/donor/DonorPrograms";
 import DonorNewDonation from "./components/pages/donor/DonorNewDonation";
+import DonorProgramDetail from "./components/pages/donor/DonorProgramDetail";
+import DonorProfile from "./components/pages/donor/DonorProfile";
+import DonorProfileEdit from "./components/pages/donor/DonorProfileEdit";
+import RecipientDashboard from "./components/pages/recipient/RecipientDashboard";
 
 // HomePage component for the home route
 const HomePage = () => (
@@ -23,7 +27,7 @@ const HomePage = () => (
 
 function App() {
   const { pathname } = useLocation();
-  const hideDefaultNavbar = pathname.startsWith("/donor");
+  const hideDefaultNavbar = pathname.startsWith("/donor") || pathname.startsWith("/penerima");
   return (
     <div className="font-sans flex flex-col min-h-screen">
       {!hideDefaultNavbar && <Navbar />}
@@ -39,7 +43,11 @@ function App() {
           <Route path="/register/penerima" element={<RecipientRegisterPage />} />
           <Route path="/donor" element={<DonorDashboard />} />
           <Route path="/donor/programku" element={<DonorPrograms />} />
+          <Route path="/donor/programku/:id" element={<DonorProgramDetail />} />
           <Route path="/donor/donasi-baru" element={<DonorNewDonation />} />
+          <Route path="/donor/profil" element={<DonorProfile />} />
+          <Route path="/donor/profil/edit" element={<DonorProfileEdit />} />
+          <Route path="/penerima" element={<RecipientDashboard />} />
           {/* Add more routes here as needed */}
         </Routes>
       </div>

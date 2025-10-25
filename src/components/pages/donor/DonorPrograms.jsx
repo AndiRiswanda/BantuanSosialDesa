@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from "react";
 import NavbarDonor from "../../layout/NavbarDonor";
 import { Filter, Search, UploadCloud, Info, CalendarDays, BadgeDollarSign, PackageCheck } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import UploadProofModal from "./UploadProofModal";
 
 function StatusPill({ color = "slate", children }) {
   const map = {
@@ -14,7 +16,7 @@ function StatusPill({ color = "slate", children }) {
   );
 }
 
-function ProgramCard({ title, start, end, type, amount, status, cta, note, progress }) {
+function ProgramCard({ title, start, end, type, amount, status, cta, note, progress, onDetail }) {
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
       <div className="px-4 md:px-5 py-4">
@@ -60,11 +62,11 @@ function ProgramCard({ title, start, end, type, amount, status, cta, note, progr
 
         {/* Footer */}
         <div className="mt-4 flex items-center justify-between gap-3 flex-wrap">
-          <button className="px-4 py-2 rounded-lg border border-green-600 text-green-700 text-sm font-semibold hover:bg-green-50">
+          <button onClick={onDetail} className="px-4 py-2 rounded-lg border border-green-600 text-green-700 text-sm font-semibold hover:bg-green-50">
             Detail Program
           </button>
           {cta && (
-            <button className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-700 shadow inline-flex items-center gap-2">
+            <button onClick={cta.onClick} className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-700 shadow inline-flex items-center gap-2">
               {cta.icon}
               <span>{cta.label}</span>
             </button>
@@ -76,6 +78,9 @@ function ProgramCard({ title, start, end, type, amount, status, cta, note, progr
 }
 
 export default function DonorPrograms() {
+  const navigate = useNavigate();
+  const [showUpload, setShowUpload] = useState(false);
+  const [activeProgramId, setActiveProgramId] = useState(null);
   // Filters state
   const [statusFilter, setStatusFilter] = useState("ALL"); // ALL | PENDING | SCHEDULED | COMPLETED
   const [query, setQuery] = useState("");
@@ -253,9 +258,17 @@ export default function DonorPrograms() {
                   type={p.type}
                   amount={p.amount}
                   status={statusMeta[p.status]}
+                  onDetail={() => navigate(`/donor/programku/${p.id}`)}
                   cta={
                     p.ctaKey === "upload"
-                      ? { label: "Upload Bukti Transfer", icon: <UploadCloud className="w-4 h-4" /> }
+                      ? {
+                          label: "Upload Bukti Transfer",
+                          icon: <UploadCloud className="w-4 h-4" />,
+                          onClick: () => {
+                            setActiveProgramId(p.id);
+                            setShowUpload(true);
+                          },
+                        }
                       : p.ctaKey === "view"
                       ? { label: "Lihat Bukti Transfer", icon: <PackageCheck className="w-4 h-4" /> }
                       : undefined
@@ -284,6 +297,7 @@ export default function DonorPrograms() {
                   amount={p.amount}
                   status={statusMeta[p.status]}
                   progress={p.progress}
+                  onDetail={() => navigate(`/donor/programku/${p.id}`)}
                 />
               ))}
             </div>
@@ -307,11 +321,23 @@ export default function DonorPrograms() {
                   amount={p.amount}
                   status={statusMeta[p.status]}
                   progress={p.progress}
+                  onDetail={() => navigate(`/donor/programku/${p.id}`)}
                 />
               ))}
             </div>
           </div>
         </section>
+      )}
+
+      {showUpload && (
+        <UploadProofModal
+          onClose={() => setShowUpload(false)}
+          onSave={(file) => {
+            // Placeholder: integrate API upload here
+            console.log("Saved proof for program", activeProgramId, file);
+            setShowUpload(false);
+          }}
+        />
       )}
     </div>
   );
