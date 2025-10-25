@@ -146,7 +146,6 @@ export default function RecipientDashboard() {
 
         {/* Section title */}
         <div className="mb-4 flex items-center gap-2">
-          <span className="text-amber-600">🍎</span>
           <h3 className="text-[#0B2B5E] font-semibold">Program Bantuan yang Diterima</h3>
         </div>
 

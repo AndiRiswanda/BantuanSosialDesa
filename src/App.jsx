@@ -16,6 +16,11 @@ import DonorProgramDetail from "./components/pages/donor/DonorProgramDetail";
 import DonorProfile from "./components/pages/donor/DonorProfile";
 import DonorProfileEdit from "./components/pages/donor/DonorProfileEdit";
 import RecipientDashboard from "./components/pages/recipient/RecipientDashboard";
+import RecipientPrograms from "./components/pages/recipient/RecipientPrograms";
+import RecipientApplication from "./components/pages/recipient/RecipientApplication";
+import RecipientApplicationStatus from "./components/pages/recipient/RecipientApplicationStatus";
+import RecipientProgramDetail from "./components/pages/recipient/RecipientProgramDetail";
+import RecipientProfile from "./components/pages/recipient/RecipientProfile";
 
 // HomePage component for the home route
 const HomePage = () => (
@@ -48,6 +53,11 @@ function App() {
           <Route path="/donor/profil" element={<DonorProfile />} />
           <Route path="/donor/profil/edit" element={<DonorProfileEdit />} />
           <Route path="/penerima" element={<RecipientDashboard />} />
+          <Route path="/penerima/profil" element={<RecipientProfile />} />
+          <Route path="/penerima/program" element={<RecipientPrograms />} />
+          <Route path="/penerima/program/:id" element={<RecipientProgramDetail />} />
+          <Route path="/penerima/pengajuan" element={<RecipientApplication />} />
+          <Route path="/penerima/pengajuan/status/:status" element={<RecipientApplicationStatus />} />
           {/* Add more routes here as needed */}
         </Routes>
       </div>
