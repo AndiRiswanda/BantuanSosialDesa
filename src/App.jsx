@@ -21,6 +21,20 @@ import RecipientApplication from "./components/pages/recipient/RecipientApplicat
 import RecipientApplicationStatus from "./components/pages/recipient/RecipientApplicationStatus";
 import RecipientProgramDetail from "./components/pages/recipient/RecipientProgramDetail";
 import RecipientProfile from "./components/pages/recipient/RecipientProfile";
+import AdminDashboard from "./components/pages/admin/AdminDashboard";
+import AdminPrograms from "./components/pages/admin/AdminPrograms";
+import AdminDonations from "./components/pages/admin/AdminDonations";
+import AdminDonationSchedule from "./components/pages/admin/AdminDonationSchedule";
+import AdminDonationEdit from "./components/pages/admin/AdminDonationEdit";
+import AdminDistribution from "./components/pages/admin/AdminDistribution";
+import AdminDistributionVerify from "./components/pages/admin/AdminDistributionVerify";
+import AdminVerificationDashboard from "./components/pages/admin/AdminVerificationDashboard";
+import AdminDonorDetail from "./components/pages/admin/AdminDonorDetail";
+import AdminDonorEdit from "./components/pages/admin/AdminDonorEdit";
+import AdminRecipientDetail from "./components/pages/admin/AdminRecipientDetail";
+import AdminRecipientEdit from "./components/pages/admin/AdminRecipientEdit";
+import AdminProfile from "./components/pages/admin/AdminProfile";
+import AdminProfileEdit from "./components/pages/admin/AdminProfileEdit";
 
 // HomePage component for the home route
 const HomePage = () => (
@@ -32,7 +46,7 @@ const HomePage = () => (
 
 function App() {
   const { pathname } = useLocation();
-  const hideDefaultNavbar = pathname.startsWith("/donor") || pathname.startsWith("/penerima");
+  const hideDefaultNavbar = pathname.startsWith("/donor") || pathname.startsWith("/penerima") || pathname.startsWith("/admin");
   return (
     <div className="font-sans flex flex-col min-h-screen">
       {!hideDefaultNavbar && <Navbar />}
@@ -58,6 +72,20 @@ function App() {
           <Route path="/penerima/program/:id" element={<RecipientProgramDetail />} />
           <Route path="/penerima/pengajuan" element={<RecipientApplication />} />
           <Route path="/penerima/pengajuan/status/:status" element={<RecipientApplicationStatus />} />
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin/program" element={<AdminPrograms />} />
+          <Route path="/admin/donasi" element={<AdminDonations />} />
+          <Route path="/admin/donasi/:id/jadwal" element={<AdminDonationSchedule />} />
+          <Route path="/admin/donasi/:id/edit" element={<AdminDonationEdit />} />
+          <Route path="/admin/penyaluran" element={<AdminDistribution />} />
+          <Route path="/admin/penyaluran/:id/verifikasi" element={<AdminDistributionVerify />} />
+          <Route path="/admin/verifikasi" element={<AdminVerificationDashboard />} />
+          <Route path="/admin/verifikasi/donatur/:id" element={<AdminDonorDetail />} />
+          <Route path="/admin/verifikasi/donatur/:id/edit" element={<AdminDonorEdit />} />
+          <Route path="/admin/verifikasi/penerima/:id" element={<AdminRecipientDetail />} />
+          <Route path="/admin/verifikasi/penerima/:id/edit" element={<AdminRecipientEdit />} />
+          <Route path="/admin/profil" element={<AdminProfile />} />
+          <Route path="/admin/profil/edit" element={<AdminProfileEdit />} />
           {/* Add more routes here as needed */}
         </Routes>
       </div>
