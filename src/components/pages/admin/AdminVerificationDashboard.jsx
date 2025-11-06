@@ -137,7 +137,13 @@ export default function AdminVerificationDashboard() {
               <h2 className="text-sm font-semibold">Verifikasi Pengajuan Penerima Baru</h2>
             </div>
             <div className="space-y-4">
-              {filteredApplicants.map((a) => {
+              {filteredApplicants.length === 0 ? (
+                <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 flex items-center gap-3">
+                  <AlertTriangle className="w-5 h-5" />
+                  <div>Tidak ada hasil yang cocok untuk pencarian Anda.</div>
+                </div>
+              ) : (
+                filteredApplicants.map((a) => {
                 const open = !!openDetail[a.id];
                 return (
                   <div key={a.id} className="rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -222,7 +228,8 @@ export default function AdminVerificationDashboard() {
                     </div>
                   </div>
                 );
-              })}
+                })
+              )}
             </div>
           </section>
         )}
@@ -244,28 +251,41 @@ export default function AdminVerificationDashboard() {
                     <th className="px-3 py-2">Aksi</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {donorsFiltered.map((d) => (
-                    <tr key={d.id}>
-                      <td className="px-3 py-2">
-                        <button type="button" onClick={() => navigate(`/admin/verifikasi/donatur/${d.id}`)} className="text-left text-emerald-700 hover:underline">{d.name}</button>
-                      </td>
-                      <td className="px-3 py-2">{d.type}</td>
-                      <td className="px-3 py-2">{d.address}</td>
-                      <td className="px-3 py-2">{d.email}</td>
-                      <td className="px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          <button className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-emerald-700" title="Verifikasi"><ShieldCheck className="w-4 h-4"/></button>
-                          <button className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-blue-700" title="Kirim Email"><Mail className="w-4 h-4"/></button>
-                          <button onClick={() => navigate(`/admin/verifikasi/donatur/${d.id}/edit`)} className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 text-amber-700" title="Ubah"><Edit className="w-4 h-4"/></button>
-                          <button className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-rose-100 text-rose-700" title="Blokir"><Lock className="w-4 h-4"/></button>
-                          <button className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-slate-700" title="Buka Blokir"><Unlock className="w-4 h-4"/></button>
-                          <button onClick={() => setConfirmDelete({ entity: 'donor', id: d.id, label: d.name })} className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-red-100 text-red-700" title="Hapus Akun"><Trash2 className="w-4 h-4"/></button>
+                {donorsFiltered.length === 0 ? (
+                  <tbody>
+                    <tr>
+                      <td colSpan={5} className="px-4 py-6 text-center text-sm text-rose-700">
+                        <div className="inline-flex items-center gap-3 justify-center">
+                          <AlertTriangle className="w-5 h-5" />
+                          Tidak ada donatur yang cocok dengan pencarian Anda.
                         </div>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
+                  </tbody>
+                ) : (
+                  <tbody className="divide-y divide-slate-200">
+                    {donorsFiltered.map((d) => (
+                      <tr key={d.id}>
+                        <td className="px-3 py-2">
+                          <button type="button" onClick={() => navigate(`/admin/verifikasi/donatur/${d.id}`)} className="text-left text-emerald-700 hover:underline">{d.name}</button>
+                        </td>
+                        <td className="px-3 py-2">{d.type}</td>
+                        <td className="px-3 py-2">{d.address}</td>
+                        <td className="px-3 py-2">{d.email}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-2">
+                            <button className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-emerald-700" title="Verifikasi"><ShieldCheck className="w-4 h-4"/></button>
+                            <button className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-blue-700" title="Kirim Email"><Mail className="w-4 h-4"/></button>
+                            <button onClick={() => navigate(`/admin/verifikasi/donatur/${d.id}/edit`)} className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 text-amber-700" title="Ubah"><Edit className="w-4 h-4"/></button>
+                            <button className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-rose-100 text-rose-700" title="Blokir"><Lock className="w-4 h-4"/></button>
+                            <button className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-slate-700" title="Buka Blokir"><Unlock className="w-4 h-4"/></button>
+                            <button onClick={() => setConfirmDelete({ entity: 'donor', id: d.id, label: d.name })} className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-red-100 text-red-700" title="Hapus Akun"><Trash2 className="w-4 h-4"/></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                )}
               </table>
             </div>
           </section>
@@ -288,27 +308,40 @@ export default function AdminVerificationDashboard() {
                     <th className="px-3 py-2">Aksi</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {recipientsFiltered.map((r) => (
-                    <tr key={r.id}>
-                      <td className="px-3 py-2">
-                        <button type="button" onClick={() => navigate(`/admin/verifikasi/penerima/${r.id}`)} className="text-left text-emerald-700 hover:underline">{r.name}</button>
-                      </td>
-                      <td className="px-3 py-2">{r.nik}</td>
-                      <td className="px-3 py-2">{r.address}</td>
-                      <td className="px-3 py-2">{r.phone}</td>
-                      <td className="px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          <button className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-emerald-700" title="Aktifkan"><Check className="w-4 h-4"/></button>
-                          <button className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-rose-100 text-rose-700" title="Nonaktifkan"><UserX className="w-4 h-4"/></button>
-                          <button className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-blue-700" title="Kirim Email"><Mail className="w-4 h-4"/></button>
-                          <button onClick={() => navigate(`/admin/verifikasi/penerima/${r.id}/edit`)} className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 text-amber-700" title="Ubah"><Edit className="w-4 h-4"/></button>
-                          <button onClick={() => setConfirmDelete({ entity: 'recipient', id: r.id, label: r.name })} className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-red-100 text-red-700" title="Hapus Akun"><Trash2 className="w-4 h-4"/></button>
+                {recipientsFiltered.length === 0 ? (
+                  <tbody>
+                    <tr>
+                      <td colSpan={5} className="px-4 py-6 text-center text-sm text-rose-700">
+                        <div className="inline-flex items-center gap-3 justify-center">
+                          <AlertTriangle className="w-5 h-5" />
+                          Tidak ada penerima yang cocok dengan pencarian Anda.
                         </div>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
+                  </tbody>
+                ) : (
+                  <tbody className="divide-y divide-slate-200">
+                    {recipientsFiltered.map((r) => (
+                      <tr key={r.id}>
+                        <td className="px-3 py-2">
+                          <button type="button" onClick={() => navigate(`/admin/verifikasi/penerima/${r.id}`)} className="text-left text-emerald-700 hover:underline">{r.name}</button>
+                        </td>
+                        <td className="px-3 py-2">{r.nik}</td>
+                        <td className="px-3 py-2">{r.address}</td>
+                        <td className="px-3 py-2">{r.phone}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-2">
+                            <button className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-emerald-700" title="Aktifkan"><Check className="w-4 h-4"/></button>
+                            <button className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-rose-100 text-rose-700" title="Nonaktifkan"><UserX className="w-4 h-4"/></button>
+                            <button className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-blue-700" title="Kirim Email"><Mail className="w-4 h-4"/></button>
+                            <button onClick={() => navigate(`/admin/verifikasi/penerima/${r.id}/edit`)} className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 text-amber-700" title="Ubah"><Edit className="w-4 h-4"/></button>
+                            <button onClick={() => setConfirmDelete({ entity: 'recipient', id: r.id, label: r.name })} className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-red-100 text-red-700" title="Hapus Akun"><Trash2 className="w-4 h-4"/></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                )}
               </table>
             </div>
           </section>
