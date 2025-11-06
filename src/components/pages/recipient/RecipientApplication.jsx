@@ -85,6 +85,8 @@ export default function RecipientApplication() {
   const [uploadTarget, setUploadTarget] = useState("KK");
   const [kkFile, setKkFile] = useState(null);
   const [houseFile, setHouseFile] = useState(null);
+  const [kkNumber, setKkNumber] = useState("");
+  const [kkError, setKkError] = useState("");
 
   const openUpload = (target) => {
     setUploadTarget(target);
@@ -127,7 +129,14 @@ export default function RecipientApplication() {
             </Field>
 
             <Field label="No. Kartu Keluarga (KK)" hint="Ket: Masukkan 16 digit nomor Kartu Keluarga (KK)">
-              <Input placeholder="contoh: '73160612214100001'" />
+              <>
+                <Input
+                  placeholder="contoh: '73160612214100001'"
+                  value={kkNumber}
+                  onChange={(e) => { setKkNumber(e.target.value); setKkError(''); }}
+                />
+                {kkError && <div className="text-sm text-red-600 mt-1">{kkError}</div>}
+              </>
             </Field>
 
             <Field label="Alamat" hint="Ket: Masukkan alamat lengkap (jalan, RT/RW)">
@@ -222,7 +231,16 @@ export default function RecipientApplication() {
             <div className="pt-2">
               <button
                 type="button"
-                onClick={() => setShowConfirm(true)}
+                onClick={() => {
+                  // validate KK number: should have exactly 16 digits (ignore non-digits)
+                  const digits = (kkNumber || "").replace(/\D/g, "");
+                  if (digits.length !== 16) {
+                    setKkError("No. KK harus terdiri dari 16 digit");
+                    return;
+                  }
+                  setKkError("");
+                  setShowConfirm(true);
+                }}
                 className="mx-auto block rounded-lg bg-emerald-600 px-6 py-2.5 text-white font-semibold shadow hover:bg-emerald-700"
               >
                 Ajukan Penerimaan Bantuan

@@ -4,6 +4,7 @@ import UsersIcon from "../../assets/iconUsers 1.png"
 import DanaIcon from "../../assets/iconTotalDana 1.png"
 import KeluargaIcon from "../../assets/iconKeluarga 1.png"
 import FrameIcon from "../../assets/Frame.png"
+import { Link } from "react-router-dom";
 
 export default function FeaturesSection() {
   return (
@@ -128,9 +129,9 @@ export default function FeaturesSection() {
         </div>
 
         <div className="mt-6 flex justify-end mx-10">
-          <button className="bg-green-600 text-white px-5 py-3 rounded-lg font-semibold shadow-sm hover:bg-green-700 hover:shadow-lg hover:scale-105 transition-all duration-300 active:scale-95">
+          <Link to="/penyaluran" className="inline-block bg-green-600 text-white px-5 py-3 rounded-lg font-semibold shadow-sm hover:bg-green-700 hover:shadow-lg hover:scale-105 transition-all duration-300 active:scale-95">
             Lihat Detail Jadwal Disini...
-          </button>
+          </Link>
         </div>
       </div>
 

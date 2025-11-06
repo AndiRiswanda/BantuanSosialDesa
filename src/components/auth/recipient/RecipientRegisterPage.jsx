@@ -1,6 +1,8 @@
 import recipientIcon from "../../../assets/iconPenerima 1.png";
+import { useNavigate } from "react-router-dom";
 
 export default function RecipientRegisterPage() {
+  const navigate = useNavigate();
   return (
     <section className="w-full min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-6xl grid lg:grid-cols-2 gap-0 bg-white rounded-3xl shadow-2xl overflow-hidden">
@@ -171,7 +173,11 @@ export default function RecipientRegisterPage() {
               {/* Login Link */}
               <p className="text-center text-sm text-gray-600 mt-4">
                 Sudah punya akun?{" "}
-                <a href="#" className="text-[#0B2B5E] font-semibold hover:underline">
+                <a
+                  href="#"
+                  className="text-[#0B2B5E] font-semibold hover:underline"
+                  onClick={(e) => { e.preventDefault(); navigate('/login/penerima'); }}
+                >
                   Masuk di sini
                 </a>
               </p>

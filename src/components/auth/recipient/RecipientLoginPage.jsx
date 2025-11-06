@@ -1,6 +1,8 @@
 import recipientIcon from "../../../assets/iconPenerima 1.png";
+import { useNavigate } from "react-router-dom";
 
 export default function RecipientLoginPage() {
+  const navigate = useNavigate();
   return (
     <section className="w-full min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-5xl grid lg:grid-cols-2 gap-0 bg-white rounded-3xl shadow-2xl overflow-hidden">
@@ -38,7 +40,7 @@ export default function RecipientLoginPage() {
               Login Penerima Bantuan
             </h1>
 
-            <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
+            <form className="space-y-5" onSubmit={(e) => { e.preventDefault(); navigate('/penerima'); }}>
               {/* No. KK */}
               <div>
                 <label htmlFor="noKK" className="block text-sm font-semibold text-gray-700 mb-2">
@@ -87,30 +89,6 @@ export default function RecipientLoginPage() {
                 </div>
               </div>
 
-              {/* Konfirmasi Kata Sandi */}
-              <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Konfirmasi Kata Sandi
-                </label>
-                <div className="relative">
-                  <svg
-                    className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                  <input
-                    id="confirmPassword"
-                    type="password"
-                    placeholder="Masukkan ulang kata sandi Anda"
-                    className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all text-sm"
-                    required
-                  />
-                </div>
-              </div>
-
               {/* Submit Button */}
               <button
                 type="submit"
@@ -122,7 +100,11 @@ export default function RecipientLoginPage() {
               {/* Register Link */}
               <p className="text-center text-sm text-gray-600 mt-4">
                 Belum punya akun?{" "}
-                <a href="#" className="text-[#0B2B5E] font-semibold hover:underline">
+                <a
+                  href="#"
+                  className="text-[#0B2B5E] font-semibold hover:underline"
+                  onClick={(e) => { e.preventDefault(); navigate('/register/penerima'); }}
+                >
                   Daftar sekarang
                 </a>
               </p>

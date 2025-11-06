@@ -47,7 +47,15 @@ export default function LoginSelection() {
           {/* Center/ Admin */}
           <div className="ls-center">
             <div className="ls-divider" aria-hidden="true"></div>
-            <span className="ls-badge">Admin</span>
+            <div className="ls-center-actions mt-4">
+              <button
+                className="bg-neutral-800 text-white px-6 py-2 rounded-lg font-medium hover:bg-neutral-900 hover:shadow transition-all duration-200"
+                type="button"
+                onClick={() => navigate('/login/admin')}
+              >
+                Masuk sebagai Admin
+              </button>
+            </div>
           </div>
 
           {/* Penerima Bantuan */}

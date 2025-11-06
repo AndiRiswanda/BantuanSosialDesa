@@ -57,25 +57,7 @@ export default function DonorLoginPage() {
                 </div>
               </div>
 
-              {/* Confirm Password */}
-              <div className="form-group">
-                <label htmlFor="confirmPassword" className="form-label">
-                  Konfirmasi Kata Sandi
-                </label>
-                <div className="input-wrapper">
-                  <svg className="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                  </svg>
-                  <input
-                    id="confirmPassword"
-                    type="password"
-                    placeholder="Masukkan Ulang Kata Sandi Anda"
-                    className="form-input"
-                    required
-                  />
-                </div>
-              </div>
+              {/* NOTE: removed Confirm Password - login should not ask for confirmation */}
 
               {/* Submit Button */}
               <button
@@ -88,7 +70,14 @@ export default function DonorLoginPage() {
               {/* Register Link */}
               <p className="register-link">
                 Belum punya akun?{" "}
-                <a href="#" className="register-anchor">
+                <a
+                  href="#"
+                  className="register-anchor"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate('/register/donatur');
+                  }}
+                >
                   Daftar sekarang
                 </a>
               </p>

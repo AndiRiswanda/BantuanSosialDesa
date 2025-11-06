@@ -42,6 +42,8 @@ export default function DonorProfileEdit() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [showLogout, setShowLogout] = useState(false);
   const { pathname } = useLocation();
+  const [email, setEmail] = useState("yypnPN@gmail.com");
+  const [emailError, setEmailError] = useState("");
 
   return (
     <div className="min-h-screen bg-white">
@@ -97,15 +99,36 @@ export default function DonorProfileEdit() {
 
           <div className="rounded-2xl border border-green-200 shadow-sm p-4 md:p-5">
           <div className="font-semibold text-[#0B2B5E] mb-3">Edit Data Donatur</div>
-          <form className="grid gap-4">
+          <form className="grid gap-4" onSubmit={(e) => e.preventDefault()}>
             {[{label:'Nama Instansi',placeholder:'Yayasan Peduli Negeri'},{label:'Email Instansi',placeholder:'yypnPN@gmail.com'},{label:'Alamat Instansi',placeholder:'Jl. Melati No. 12, RT 01/RW 02, Jakarta Barat, Indonesia'},{label:'No. Telepon/WhatsApp',placeholder:'085334*****46'},{label:'Jenis Donatur',placeholder:'Organisasi'}].map((f) => (
               <div key={f.label}>
                 <div className="text-sm text-slate-600 mb-1">{f.label}</div>
-                <input className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" placeholder={f.placeholder} />
+                {f.label === 'Email Instansi' ? (
+                  <>
+                    <input
+                      value={email}
+                      onChange={(e) => { setEmail(e.target.value); setEmailError(''); }}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                      placeholder={f.placeholder}
+                    />
+                    {emailError && <div className="text-sm text-red-600 mt-1">{emailError}</div>}
+                  </>
+                ) : (
+                  <input className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" placeholder={f.placeholder} />
+                )}
               </div>
             ))}
             <div className="pt-2">
-              <button type="button" onClick={() => setShowConfirm(true)} className="rounded-lg bg-[#43A047] px-4 py-2 text-sm font-semibold text-white">Simpan Perubahan</button>
+              <button type="button" onClick={() => {
+                // validate email before showing confirm modal
+                const re = /\S+@\S+\.\S+/;
+                if (!re.test(email)) {
+                  setEmailError('Format email tidak valid');
+                  return;
+                }
+                setEmailError('');
+                setShowConfirm(true);
+              }} className="rounded-lg bg-[#43A047] px-4 py-2 text-sm font-semibold text-white">Simpan Perubahan</button>
             </div>
           </form>
           </div>

@@ -1,4 +1,5 @@
 import hero from "../../assets/LandingPageHero.png"
+import { Link } from "react-router-dom";
 
 export default function HeroSection() {
   return (
@@ -14,9 +15,9 @@ export default function HeroSection() {
           Wujudkan penyaluran bantuan sosial yang tepat sasaran,
           transparan, dan akuntable melalui platform ini.
         </p>
-        <button className="bg-green-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-green-700 hover:shadow-lg hover:scale-105 transition-all duration-300 active:scale-95">
+        <Link to="/register/donatur" className="inline-block bg-green-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-green-700 hover:shadow-lg hover:scale-105 transition-all duration-300 active:scale-95">
           Donasi Sekarang
-        </button>
+        </Link>
       </div>
 
       {/* Ini hero na sodara */}

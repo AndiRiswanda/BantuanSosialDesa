@@ -9,6 +9,7 @@ import DonorLoginPage from "./components/auth/donor/DonorLoginPage";
 import DonorRegisterPage from "./components/auth/donor/DonorRegisterPage";
 import RecipientLoginPage from "./components/auth/recipient/RecipientLoginPage";
 import RecipientRegisterPage from "./components/auth/recipient/RecipientRegisterPage";
+import AdminLoginPage from "./components/auth/AdminLoginPage";
 import DonorDashboard from "./components/pages/donor/DonorDashboard";
 import DonorPrograms from "./components/pages/donor/DonorPrograms";
 import DonorNewDonation from "./components/pages/donor/DonorNewDonation";
@@ -56,6 +57,7 @@ function App() {
           <Route path="/penyaluran" element={<PenyaluranPage />} />
           <Route path="/pengaduan" element={<PengaduanSection />} />
           <Route path="/login" element={<LoginSelection />} />
+          <Route path="/login/admin" element={<AdminLoginPage />} />
           <Route path="/login/donatur" element={<DonorLoginPage />} />
           <Route path="/register/donatur" element={<DonorRegisterPage />} />
           <Route path="/login/penerima" element={<RecipientLoginPage />} />
