@@ -46,10 +46,32 @@ class DonorController extends Controller
 
     public function programDetail($id)
     {
-        $program = ProgramBantuan::with(['kategori', 'donatur', 'penerimaPrograms.penerima'])
-            ->findOrFail($id);
+        $program = ProgramBantuan::with([
+            'kategori', 
+            'donatur', 
+            'penerimaPrograms' => function($query) {
+                $query->with(['penerima', 'transaksiPenyaluran']);
+            }
+        ])->findOrFail($id);
         
-        return response()->json($program);
+        // Calculate statistics
+        $totalPenerima = $program->penerimaPrograms->count();
+        $penerimaDisetujui = $program->penerimaPrograms->where('status_seleksi', 'disetujui')->count();
+        
+        // Count tersalurkan (with transaksi and status selesai)
+        $totalTersalurkan = $program->penerimaPrograms->filter(function($pp) {
+            return $pp->transaksiPenyaluran && 
+                   $pp->transaksiPenyaluran->where('status_penyaluran', 'selesai')->count() > 0;
+        })->count();
+        
+        return response()->json([
+            'program' => $program,
+            'statistics' => [
+                'total_penerima' => $totalPenerima,
+                'penerima_disetujui' => $penerimaDisetujui,
+                'total_tersalurkan' => $totalTersalurkan,
+            ]
+        ]);
     }
 
     public function createProgram(Request $request)
@@ -64,6 +86,20 @@ class DonorController extends Controller
             'tanggal_selesai' => 'nullable|date|after:tanggal_mulai',
             'jenis_bantuan' => 'required|in:uang,barang',
             'jumlah_bantuan' => 'required|numeric|min:0',
+        ], [
+            'id_kategori.required' => 'Kategori bantuan harus dipilih.',
+            'id_kategori.exists' => 'Kategori bantuan tidak valid.',
+            'nama_program.required' => 'Nama program harus diisi.',
+            'nama_program.max' => 'Nama program maksimal 150 karakter.',
+            'tanggal_mulai.required' => 'Tanggal mulai harus diisi.',
+            'tanggal_mulai.date' => 'Format tanggal mulai tidak valid.',
+            'tanggal_selesai.date' => 'Format tanggal selesai tidak valid.',
+            'tanggal_selesai.after' => 'Tanggal selesai harus setelah tanggal mulai.',
+            'jenis_bantuan.required' => 'Jenis bantuan harus dipilih.',
+            'jenis_bantuan.in' => 'Jenis bantuan harus uang atau barang.',
+            'jumlah_bantuan.required' => 'Jumlah bantuan harus diisi.',
+            'jumlah_bantuan.numeric' => 'Jumlah bantuan harus berupa angka.',
+            'jumlah_bantuan.min' => 'Jumlah bantuan tidak boleh negatif.',
         ]);
 
         $program = $donatur->programBantuan()->create([
@@ -77,7 +113,10 @@ class DonorController extends Controller
             'status' => 'aktif',
         ]);
 
-        return response()->json($program->load('kategori'), 201);
+        return response()->json([
+            'message' => 'Program bantuan berhasil dibuat.',
+            'program' => $program->load('kategori')
+        ], 201);
     }
 
     public function updateProgram(Request $request, $id)
@@ -91,11 +130,20 @@ class DonorController extends Controller
             'tanggal_selesai' => 'nullable|date',
             'jumlah_bantuan' => 'numeric|min:0',
             'status' => 'in:aktif,selesai,ditunda',
+        ], [
+            'nama_program.max' => 'Nama program maksimal 150 karakter.',
+            'tanggal_selesai.date' => 'Format tanggal selesai tidak valid.',
+            'jumlah_bantuan.numeric' => 'Jumlah bantuan harus berupa angka.',
+            'jumlah_bantuan.min' => 'Jumlah bantuan tidak boleh negatif.',
+            'status.in' => 'Status harus salah satu dari: aktif, selesai, ditunda.',
         ]);
 
         $program->update($request->all());
 
-        return response()->json($program->load('kategori'));
+        return response()->json([
+            'message' => 'Program bantuan berhasil diperbarui.',
+            'program' => $program->load('kategori')
+        ]);
     }
 
     public function profile(Request $request)
@@ -111,10 +159,72 @@ class DonorController extends Controller
             'nama_organisasi' => 'string|max:100',
             'nomor_telepon' => 'nullable|string|max:15',
             'alamat' => 'nullable|string',
+        ], [
+            'nama_organisasi.max' => 'Nama organisasi maksimal 100 karakter.',
+            'nomor_telepon.max' => 'Nomor telepon maksimal 15 karakter.',
         ]);
 
         $donatur->update($request->only(['nama_organisasi', 'nomor_telepon', 'alamat']));
 
-        return response()->json($donatur);
+        return response()->json([
+            'message' => 'Profil berhasil diperbarui.',
+            'user' => $donatur
+        ]);
+    }
+
+    public function deleteProgram(Request $request, $id)
+    {
+        $donatur = $request->user();
+        $program = $donatur->programBantuan()->findOrFail($id);
+        
+        // Check if program has recipients
+        if ($program->penerimaPrograms()->count() > 0) {
+            return response()->json([
+                'message' => 'Program tidak dapat dihapus karena sudah memiliki penerima bantuan.',
+                'error' => 'Program memiliki ' . $program->penerimaPrograms()->count() . ' penerima.'
+            ], 400);
+        }
+        
+        $programName = $program->nama_program;
+        $program->delete();
+        
+        return response()->json([
+            'message' => "Program '$programName' berhasil dihapus."
+        ]);
+    }
+
+    public function categories()
+    {
+        $categories = KategoriBantuan::all();
+        return response()->json($categories);
+    }
+
+    public function programRecipients(Request $request, $id)
+    {
+        $donatur = $request->user();
+        $program = $donatur->programBantuan()->findOrFail($id);
+        
+        $recipients = $program->penerimaPrograms()
+            ->with(['penerima', 'transaksiPenyaluran'])
+            ->get();
+            
+        // Group by status
+        $grouped = [
+            'pending' => $recipients->where('status_seleksi', 'pending'),
+            'disetujui' => $recipients->where('status_seleksi', 'disetujui'),
+            'ditolak' => $recipients->where('status_seleksi', 'ditolak'),
+        ];
+        
+        return response()->json([
+            'program' => $program->only(['id_program', 'nama_program']),
+            'recipients' => $recipients,
+            'grouped' => $grouped,
+            'summary' => [
+                'total' => $recipients->count(),
+                'pending' => $grouped['pending']->count(),
+                'disetujui' => $grouped['disetujui']->count(),
+                'ditolak' => $grouped['ditolak']->count(),
+            ]
+        ]);
     }
 }

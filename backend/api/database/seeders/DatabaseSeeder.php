@@ -96,7 +96,7 @@ class DatabaseSeeder extends Seeder
         // Recipients
         $p1 = Penerima::create([
             'no_kk' => '3201010101010001',
-            'password' => Hash::make('recipient123'),
+            'password' => Hash::make('penerima123'),
             'nama_kepala' => 'Budi Santoso',
             'alamat' => 'Dusun 1 RT 01 RW 01',
             'nomor_telepon' => '081300000001',
@@ -110,7 +110,7 @@ class DatabaseSeeder extends Seeder
 
         $p2 = Penerima::create([
             'no_kk' => '3201010101010002',
-            'password' => Hash::make('recipient123'),
+            'password' => Hash::make('penerima1234'),
             'nama_kepala' => 'Siti Aminah',
             'alamat' => 'Dusun 2 RT 02 RW 01',
             'nomor_telepon' => '081300000002',

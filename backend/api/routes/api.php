@@ -36,18 +36,21 @@ Route::middleware('auth:sanctum')->group(function () {
     });
     
     // Donor routes (Donatur)
-    Route::prefix('donor')->group(function () {
+    Route::prefix('donor')->middleware('role:donatur')->group(function () {
         Route::get('/dashboard', [DonorController::class, 'dashboard']);
+        Route::get('/categories', [DonorController::class, 'categories']);
         Route::get('/programs', [DonorController::class, 'programs']);
         Route::get('/programs/{id}', [DonorController::class, 'programDetail']);
+        Route::get('/programs/{id}/recipients', [DonorController::class, 'programRecipients']);
         Route::post('/programs', [DonorController::class, 'createProgram']);
         Route::put('/programs/{id}', [DonorController::class, 'updateProgram']);
+        Route::delete('/programs/{id}', [DonorController::class, 'deleteProgram']);
         Route::get('/profile', [DonorController::class, 'profile']);
         Route::put('/profile', [DonorController::class, 'updateProfile']);
     });
     
     // Recipient routes (Penerima)
-    Route::prefix('recipient')->group(function () {
+    Route::prefix('recipient')->middleware('role:penerima')->group(function () {
         Route::get('/dashboard', [RecipientController::class, 'dashboard']);
         Route::get('/programs', [RecipientController::class, 'programs']);
         Route::get('/programs/{id}', [RecipientController::class, 'programDetail']);
@@ -59,7 +62,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
     
     // Admin routes
-    Route::prefix('admin')->middleware('admin')->group(function () {
+    Route::prefix('admin')->middleware('role:admin')->group(function () {
         Route::get('/dashboard', [AdminController::class, 'dashboard']);
         
         // Programs management

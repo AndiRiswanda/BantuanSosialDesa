@@ -16,13 +16,23 @@ class AuthController extends Controller
         $request->validate([
             'email' => 'required|email',
             'password' => 'required',
+        ], [
+            'email.required' => 'Email harus diisi.',
+            'email.email' => 'Format email tidak valid.',
+            'password.required' => 'Password harus diisi.',
         ]);
 
         $donatur = Donatur::where('email', $request->email)->first();
 
-        if (!$donatur || !Hash::check($request->password, $donatur->password)) {
+        if (!$donatur) {
             throw ValidationException::withMessages([
-                'email' => ['The provided credentials are incorrect.'],
+                'email' => ['Email tidak terdaftar sebagai donatur.'],
+            ]);
+        }
+
+        if (!Hash::check($request->password, $donatur->password)) {
+            throw ValidationException::withMessages([
+                'password' => ['Password yang Anda masukkan salah.'],
             ]);
         }
 
@@ -40,13 +50,22 @@ class AuthController extends Controller
         $request->validate([
             'no_kk' => 'required',
             'password' => 'required',
+        ], [
+            'no_kk.required' => 'Nomor KK harus diisi.',
+            'password.required' => 'Password harus diisi.',
         ]);
 
         $penerima = Penerima::where('no_kk', $request->no_kk)->first();
 
-        if (!$penerima || !Hash::check($request->password, $penerima->password)) {
+        if (!$penerima) {
             throw ValidationException::withMessages([
-                'no_kk' => ['The provided credentials are incorrect.'],
+                'no_kk' => ['Nomor KK tidak terdaftar sebagai penerima bantuan.'],
+            ]);
+        }
+
+        if (!Hash::check($request->password, $penerima->password)) {
+            throw ValidationException::withMessages([
+                'password' => ['Password yang Anda masukkan salah.'],
             ]);
         }
 
@@ -68,6 +87,18 @@ class AuthController extends Controller
             'nomor_telepon' => 'nullable|string|max:15',
             'alamat' => 'nullable|string',
             'jenis_instansi' => 'required|in:perusahaan,yayasan,perorangan',
+        ], [
+            'nama_organisasi.required' => 'Nama organisasi harus diisi.',
+            'nama_organisasi.max' => 'Nama organisasi maksimal 100 karakter.',
+            'email.required' => 'Email harus diisi.',
+            'email.email' => 'Format email tidak valid.',
+            'email.unique' => 'Email sudah terdaftar. Silakan gunakan email lain.',
+            'password.required' => 'Password harus diisi.',
+            'password.min' => 'Password minimal 8 karakter.',
+            'password.confirmed' => 'Konfirmasi password tidak cocok.',
+            'nomor_telepon.max' => 'Nomor telepon maksimal 15 karakter.',
+            'jenis_instansi.required' => 'Jenis instansi harus dipilih.',
+            'jenis_instansi.in' => 'Jenis instansi harus salah satu dari: perusahaan, yayasan, perorangan.',
         ]);
 
         $donatur = Donatur::create([
@@ -102,6 +133,20 @@ class AuthController extends Controller
             'status_anak' => 'nullable|in:belum punya,bayi,sekolah,bekerja,tidak bekerja',
             'jumlah_tanggungan' => 'required|integer|min:0',
             'penghasilan' => 'nullable|in:< 500.000,500.000 - 1.000.000,1.000.001 - 2.000.000,2.000.001 - 3.000.000,> 3.000.000',
+        ], [
+            'no_kk.required' => 'Nomor KK harus diisi.',
+            'no_kk.unique' => 'Nomor KK sudah terdaftar. Silakan hubungi admin jika ada masalah.',
+            'no_kk.max' => 'Nomor KK maksimal 20 karakter.',
+            'password.required' => 'Password harus diisi.',
+            'password.min' => 'Password minimal 8 karakter.',
+            'password.confirmed' => 'Konfirmasi password tidak cocok.',
+            'nama_kepala.required' => 'Nama kepala keluarga harus diisi.',
+            'nama_kepala.max' => 'Nama kepala keluarga maksimal 100 karakter.',
+            'nomor_telepon.max' => 'Nomor telepon maksimal 15 karakter.',
+            'pekerjaan.max' => 'Pekerjaan maksimal 100 karakter.',
+            'jumlah_tanggungan.required' => 'Jumlah tanggungan harus diisi.',
+            'jumlah_tanggungan.integer' => 'Jumlah tanggungan harus berupa angka.',
+            'jumlah_tanggungan.min' => 'Jumlah tanggungan minimal 0.',
         ]);
 
         $penerima = Penerima::create([
@@ -132,13 +177,23 @@ class AuthController extends Controller
         $request->validate([
             'email' => 'required|email',
             'password' => 'required',
+        ], [
+            'email.required' => 'Email harus diisi.',
+            'email.email' => 'Format email tidak valid.',
+            'password.required' => 'Password harus diisi.',
         ]);
 
         $admin = UserAdmin::where('email', $request->email)->first();
 
-        if (!$admin || !Hash::check($request->password, $admin->password)) {
+        if (!$admin) {
             throw ValidationException::withMessages([
-                'email' => ['The provided credentials are incorrect.'],
+                'email' => ['Email tidak terdaftar sebagai admin.'],
+            ]);
+        }
+
+        if (!Hash::check($request->password, $admin->password)) {
+            throw ValidationException::withMessages([
+                'password' => ['Password yang Anda masukkan salah.'],
             ]);
         }
 
