@@ -26,7 +26,7 @@ const ProtectedRoute = ({ children, allowedTypes }) => {
       case 'admin':
         return <Navigate to="/admin/dashboard" replace />;
       case 'donor':
-        return <Navigate to="/donor/dashboard" replace />;
+        return <Navigate to="/donatur/dashboard" replace />;
       case 'recipient':
         return <Navigate to="/recipient/dashboard" replace />;
       default:

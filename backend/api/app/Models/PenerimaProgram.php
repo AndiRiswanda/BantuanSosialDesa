@@ -21,6 +21,8 @@ class PenerimaProgram extends Model
         'created_by',
     ];
 
+    protected $with = ['penerima', 'transaksiPenyaluran'];
+
     protected function casts(): array
     {
         return [

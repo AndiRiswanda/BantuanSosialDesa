@@ -96,6 +96,86 @@
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
 }
 
+/* Error Styling */
+.input-error {
+  border-color: #ef4444 !important;
+  background: #fef2f2 !important;
+}
+
+.input-error:focus {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+}
+
+.error-text {
+  color: #dc2626;
+  font-size: 0.875rem;
+  margin: 0;
+  margin-top: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.error-message-box {
+  background: #fef2f2;
+  border: 1.5px solid #fecaca;
+  border-radius: 0.625rem;
+  padding: 0.875rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  color: #dc2626;
+  font-size: 0.9rem;
+  animation: slideDown 0.3s ease;
+}
+
+.error-message-box svg {
+  flex-shrink: 0;
+  stroke: #dc2626;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Loading state */
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.flex {
+  display: flex;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.gap-2 {
+  gap: 0.5rem;
+}
+
 .register-link {
   text-align: center;
   font-size: 0.9rem;

@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import NavbarDonor from "../../layout/NavbarDonor";
 import { ArrowLeft, Building2, ShieldCheck, LogOut, User, Mail, Phone, MapPin, Layers, Pencil } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import api from "../../../utils/api";
 
 function StatBox({ label, value }) {
 	return (
@@ -34,6 +35,126 @@ export default function DonorProfile() {
 	const navigate = useNavigate();
 	const { pathname } = useLocation();
 	const [showLogout, setShowLogout] = useState(false);
+	const [profile, setProfile] = useState(null);
+	const [stats, setStats] = useState(null);
+	const [loading, setLoading] = useState(true);
+
+	useEffect(() => {
+		const fetchData = async () => {
+			try {
+				console.log("=== FETCHING PROFILE DATA ===");
+				console.log("🔑 Auth Token:", localStorage.getItem('auth_token') ? 'EXISTS' : 'MISSING');
+				
+				// Fetch profile - api.get returns data directly
+				console.log("⏳ Fetching profile...");
+				const profileData = await api.get("/api/donatur/profile");
+				console.log("✅ Profile Response:", profileData);
+				setProfile(profileData);
+				
+				// Fetch dashboard stats - api.get returns data directly  
+				console.log("⏳ Fetching dashboard...");
+				const dashboardData = await api.get("/api/donatur/dashboard");
+				console.log("✅ Dashboard Response received!");
+				console.log("Type:", typeof dashboardData);
+				console.log("Is null?", dashboardData === null);
+				console.log("Is undefined?", dashboardData === undefined);
+				console.log("Dashboard Data:", dashboardData);
+				
+				if (!dashboardData) {
+					console.error("❌ Dashboard data is null/undefined!");
+					setStats({
+						total_bantuan_uang: 0,
+						total_bantuan_barang: 0,
+						total_penerima: 0,
+						active_programs: 0,
+					});
+					return;
+				}
+				
+				console.log("📊 Has stats property?", !!dashboardData.stats);
+				console.log("📊 Stats Object:", dashboardData.stats || dashboardData);
+				
+				// Extract stats - handle both nested and flat response
+				const statsData = dashboardData.stats || dashboardData;
+				
+				// Safely extract values with logging
+				console.log("🔍 Extracting values:");
+				console.log("💰 total_bantuan_uang:", statsData.total_bantuan_uang, typeof statsData.total_bantuan_uang);
+				console.log("📦 total_bantuan_barang:", statsData.total_bantuan_barang, typeof statsData.total_bantuan_barang);
+				console.log("👥 total_penerima:", statsData.total_penerima, typeof statsData.total_penerima);
+				console.log("📋 active_programs:", statsData.active_programs, typeof statsData.active_programs);
+				
+				// Convert to numbers safely
+				const processedStats = {
+					total_bantuan_uang: Number(statsData.total_bantuan_uang) || 0,
+					total_bantuan_barang: Number(statsData.total_bantuan_barang) || 0,
+					total_penerima: Number(statsData.total_penerima) || 0,
+					active_programs: Number(statsData.active_programs) || 0,
+				};
+				
+				console.log("✨ Processed stats (after Number conversion):");
+				console.log("💰 total_bantuan_uang (number):", processedStats.total_bantuan_uang, typeof processedStats.total_bantuan_uang);
+				console.log("📦 total_bantuan_barang (number):", processedStats.total_bantuan_barang, typeof processedStats.total_bantuan_barang);
+				console.log("👥 total_penerima (number):", processedStats.total_penerima, typeof processedStats.total_penerima);
+				console.log("📋 active_programs (number):", processedStats.active_programs, typeof processedStats.active_programs);
+				
+				// Log formatted values
+				console.log("💵 Formatted Uang:", formatCurrency(processedStats.total_bantuan_uang));
+				console.log("📦 Formatted Barang:", processedStats.total_bantuan_barang.toLocaleString('id-ID') + " Unit");
+				
+				setStats(processedStats);
+				console.log("✅ Stats SET to state!");
+				console.log("Final stats in state:", processedStats);
+			} catch (error) {
+				console.log("=".repeat(50));
+				console.error("❌❌❌ PROFILE FETCH ERROR!");
+				console.log("=".repeat(50));
+				console.error("Error:", error);
+				console.error("Error message:", error.message);
+				console.error("Error stack:", error.stack);
+				if (error.response) {
+					console.error("Response status:", error.response.status);
+					console.error("Response data:", error.response.data);
+				}
+				console.log("=".repeat(50));
+				
+				// Set empty stats on error
+				setStats({
+					total_bantuan_uang: 0,
+					total_bantuan_barang: 0,
+					total_penerima: 0,
+					active_programs: 0,
+				});
+			} finally {
+				setLoading(false);
+			}
+		};
+		
+		fetchData();
+	}, []);
+
+	const formatCurrency = (amount) => {
+		return new Intl.NumberFormat("id-ID", {
+			style: "currency",
+			currency: "IDR",
+			minimumFractionDigits: 0,
+			maximumFractionDigits: 0,
+		}).format(amount);
+	};
+
+	if (loading) {
+		return (
+			<div className="min-h-screen bg-white">
+				<NavbarDonor />
+				<div className="flex items-center justify-center min-h-[60vh]">
+					<div className="text-center">
+						<div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+						<p className="mt-4 text-slate-600">Memuat data...</p>
+					</div>
+				</div>
+			</div>
+		);
+	}
 
 	return (
 		<div className="min-h-screen bg-white">
@@ -87,20 +208,69 @@ export default function DonorProfile() {
 					{/* Header card */}
 					<div className="rounded-2xl bg-gradient-to-br from-green-500 to-green-600 p-4 text-white shadow">
 						<div className="flex items-center gap-4">
-							<div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center text-lg font-extrabold">YPN</div>
+							<div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center text-lg font-extrabold">
+								{profile?.nama_organisasi ? profile.nama_organisasi.substring(0, 3).toUpperCase() : 'DO'}
+							</div>
 							<div className="flex-1">
-								<div className="text-lg md:text-xl font-extrabold">Yayasan Peduli Negeri</div>
+								<div className="text-lg md:text-xl font-extrabold">{profile?.nama_organisasi || 'Loading...'}</div>
 								<div className="mt-1 flex flex-wrap items-center gap-2 text-xs md:text-sm">
-									<span className="inline-flex items-center gap-1 rounded bg-white/20 px-2 py-0.5"><ShieldCheck className="w-3.5 h-3.5"/> Organisasi</span>
-									<span>Jl. Melati No. 12, RT 01/RW 02, Jakarta Barat, Indonesia</span>
-									<span>085334****46</span>
+									<span className="inline-flex items-center gap-1 rounded bg-white/20 px-2 py-0.5">
+										<ShieldCheck className="w-3.5 h-3.5"/> {profile?.jenis_instansi || 'Organisasi'}
+									</span>
+									<span>{profile?.alamat || 'Alamat tidak tersedia'}</span>
+									<span>{profile?.nomor_telepon || '-'}</span>
 								</div>
 							</div>
 						</div>
-						<div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-							<StatBox label="Program Bantuan" value="5" />
-							<StatBox label="Total Donasi" value="Rp. 1.567.000.000,-" />
-							<StatBox label="Penerima Terbantu" value="712" />
+						
+						{/* Debug Info */}
+						{import.meta.env.DEV && stats && (
+							<div className="mt-3 p-2 bg-white/20 rounded text-xs space-y-1">
+								<div>🐛 Debug:</div>
+								<div>Uang (raw): {stats.total_bantuan_uang} ({typeof stats.total_bantuan_uang})</div>
+								<div>Barang (raw): {stats.total_bantuan_barang} ({typeof stats.total_bantuan_barang})</div>
+								<div>Formatted Uang: {formatCurrency(stats.total_bantuan_uang)}</div>
+							</div>
+						)}
+						
+						{/* Statistics Section with Total Donasi Split */}
+						<div className="mt-5 space-y-3">
+							{/* Total Donasi Header */}
+							<div className="text-center">
+								<h3 className="text-lg font-bold text-white/90">Total Donasi</h3>
+								<p className="text-xs text-white/70">Donasi dalam bentuk uang dan barang</p>
+							</div>
+							
+							{/* Total Donasi - Uang dan Barang Side by Side */}
+							<div className="grid grid-cols-2 gap-3">
+								<div className="rounded-xl bg-white/90 backdrop-blur-sm border border-white/30 shadow-sm p-3 text-center">
+									<div className="text-green-700 font-semibold text-xs mb-1">💰 Donasi Uang</div>
+									<div className="text-xl font-extrabold text-green-800 break-words">
+										{formatCurrency(stats?.total_bantuan_uang ?? 0)}
+									</div>
+									<div className="text-[10px] text-slate-600 mt-1">Total uang disalurkan</div>
+								</div>
+								<div className="rounded-xl bg-white/90 backdrop-blur-sm border border-white/30 shadow-sm p-3 text-center">
+									<div className="text-blue-700 font-semibold text-xs mb-1">📦 Donasi Barang</div>
+									<div className="text-xl font-extrabold text-blue-800">
+										{(stats?.total_bantuan_barang ?? 0).toLocaleString('id-ID')}
+									</div>
+									<div className="text-sm font-semibold text-blue-600">Unit</div>
+									<div className="text-[10px] text-slate-600 mt-1">Total barang disalurkan</div>
+								</div>
+							</div>
+							
+							{/* Other Stats */}
+							<div className="grid grid-cols-2 gap-3">
+								<StatBox 
+									label="Program Bantuan" 
+									value={(stats?.active_programs ?? 0).toString()} 
+								/>
+								<StatBox 
+									label="Penerima Terbantu" 
+									value={(stats?.total_penerima ?? 0).toString()} 
+								/>
+							</div>
 						</div>
 					</div>
 
@@ -109,15 +279,15 @@ export default function DonorProfile() {
 						<div className="px-4 py-2 border-b border-green-200 font-semibold text-[#0B2B5E]">Data Donatur</div>
 						<div className="p-4 grid gap-3">
 							{[{
-								label: "Nama Instansi", value: "Yayasan Peduli Negeri", icon: Building2
+								label: "Nama Instansi", value: profile?.nama_organisasi || '-', icon: Building2
 							},{
-								label: "Email Instansi", value: "yayasanPeduliNegeri@gmail.com", icon: Mail
+								label: "Email Instansi", value: profile?.email || '-', icon: Mail
 							},{
-								label: "Alamat Instansi", value: "Jl. Melati No. 12, RT 01/RW 02, Jakarta Barat, Indonesia", icon: MapPin
+								label: "Alamat Instansi", value: profile?.alamat || '-', icon: MapPin
 							},{
-								label: "No. Telepon/WhatsApp", value: "085334*****46", icon: Phone
+								label: "No. Telepon/WhatsApp", value: profile?.nomor_telepon || '-', icon: Phone
 							},{
-								label: "Jenis Donatur", value: "Organisasi", icon: Layers
+								label: "Jenis Donatur", value: profile?.jenis_instansi || '-', icon: Layers
 							}].map(({label, value, icon: Icon}) => (
 								<div key={label} className="grid md:grid-cols-[220px,1fr] items-start gap-3">
 									<div className="text-sm text-slate-600 flex items-center gap-2"><Icon className="w-4 h-4"/> {label}</div>

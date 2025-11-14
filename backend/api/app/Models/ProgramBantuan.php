@@ -22,6 +22,8 @@ class ProgramBantuan extends Model
         'tanggal_selesai',
         'jenis_bantuan',
         'jumlah_bantuan',
+        'kriteria_penerima',
+        'keterangan',
         'status',
     ];
 

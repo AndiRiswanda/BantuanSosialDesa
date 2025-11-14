@@ -66,21 +66,41 @@ export const AuthProvider = ({ children }) => {
       return { success: true, user, type: responseType };
       
     } catch (err) {
+      console.log("=== AUTH CONTEXT LOGIN ERROR ===");
+      console.log("Error:", err);
+      console.log("Error.response:", err.response);
+      console.log("Error.response.data:", err.response?.data);
+      console.log("Error.response.data.errors:", err.response?.data?.errors);
+      console.log("================================");
+      
       setLoading(false);
       
       // Handle different error formats from backend
       let errorMessage = 'Login gagal. Silakan coba lagi.';
       
-      if (err.message) {
-        // Direct error message from backend
+      // Check if error has response (Axios error structure)
+      if (err.response && err.response.data) {
+        const { data } = err.response;
+        
+        // Check if we have validation errors (Laravel 422 response)
+        if (data.errors && typeof data.errors === 'object') {
+          // Get the first error message from the errors object
+          const firstErrorKey = Object.keys(data.errors)[0];
+          const firstErrorMessages = data.errors[firstErrorKey];
+          
+          // Extract the first message
+          if (Array.isArray(firstErrorMessages) && firstErrorMessages.length > 0) {
+            errorMessage = firstErrorMessages[0];
+          } else if (typeof firstErrorMessages === 'string') {
+            errorMessage = firstErrorMessages;
+          }
+        } else if (data.message) {
+          // Use the general message if no specific field errors
+          errorMessage = data.message;
+        }
+      } else if (err.message) {
+        // Axios error message
         errorMessage = err.message;
-      } else if (err.errors) {
-        // Validation errors from Laravel (422 status)
-        // Convert object of errors to a single string
-        const errorMessages = Object.values(err.errors)
-          .flat()
-          .join(', ');
-        errorMessage = errorMessages;
       } else if (typeof err === 'string') {
         errorMessage = err;
       }
@@ -108,27 +128,36 @@ export const AuthProvider = ({ children }) => {
           throw new Error('Invalid user type');
       }
       
-      const { user, token, type: responseType } = response.data;
-      
-      // Save to state
-      setUser(user);
-      setUserType(responseType);
-      
-      // Save to localStorage
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      localStorage.setItem('userType', responseType);
+      const { user, type: responseType } = response.data;
       
       setLoading(false);
+      
+      // Don't auto-login, just return success
       return { success: true, user, type: responseType };
       
     } catch (err) {
       setLoading(false);
-      const errorMessage = err.errors 
-        ? Object.values(err.errors).flat().join(', ')
-        : err.message || 'Registration failed. Please try again.';
+      
+      // Handle different error formats
+      let errorMessage = 'Terjadi kesalahan saat mendaftar.';
+      let errors = {};
+      
+      if (err.response && err.response.data) {
+        const data = err.response.data;
+        if (data.errors) {
+          errors = data.errors;
+        }
+        if (data.message) {
+          errorMessage = data.message;
+        }
+      } else if (err.errors) {
+        errors = err.errors;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
       setError(errorMessage);
-      return { success: false, error: errorMessage, errors: err.errors };
+      throw { message: errorMessage, errors };
     }
   };
 

@@ -33,7 +33,7 @@ export const removeUser = () => {
 };
 
 // Base fetch function with auth
-const apiFetch = async (endpoint, options = {}) => {
+export const apiFetch = async (endpoint, options = {}) => {
   const token = getAuthToken();
   
   const headers = {
@@ -51,15 +51,101 @@ const apiFetch = async (endpoint, options = {}) => {
     headers,
   };
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
-  
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Something went wrong');
-  }
+  try {
+    console.log("=== API FETCH DEBUG ===");
+    console.log("Endpoint:", endpoint);
+    console.log("Options:", options);
+    
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+    console.log("Response status:", response.status);
+    console.log("Response ok:", response.ok);
+    console.log("Response headers:", response.headers.get('content-type'));
+    
+    // Check if response is JSON
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      console.error("Response is not JSON. Content-Type:", contentType);
+      throw new Error('Server response is not JSON');
+    }
+    
+    // Parse JSON
+    let data;
+    try {
+      data = await response.json();
+      console.log("Response data:", data);
+      console.log("Data type:", typeof data);
+      console.log("Data keys:", Object.keys(data));
+      console.log("Has errors?", data.errors);
+      console.log("Errors type:", typeof data.errors);
+    } catch (parseError) {
+      console.error("JSON parse error:", parseError);
+      throw new Error('Failed to parse server response');
+    }
+    
+    if (!response.ok) {
+      console.log("Response NOT OK - Creating error object");
+      // Create error object that mimics axios error structure
+      const error = new Error(data.message || 'Something went wrong');
+      error.response = {
+        status: response.status,
+        data: data, // This should contain {message, errors} from Laravel
+        statusText: response.statusText
+      };
+      console.log("Error object created:", error);
+      console.log("Error response:", error.response);
+      console.log("Error response data:", error.response.data);
+      console.log("======================");
+      throw error;
+    }
 
-  return response.json();
+    console.log("Response OK - Returning data");
+    console.log("======================");
+    return data;
+  } catch (error) {
+    console.log("=== CATCH BLOCK ===");
+    console.log("Error:", error);
+    console.log("Error name:", error.name);
+    console.log("Error message:", error.message);
+    console.log("Has error.response?", !!error.response);
+    
+    // If it's already our custom error, throw it
+    if (error.response) {
+      console.log("Throwing custom error with response");
+      throw error;
+    }
+    
+    // Check if it's a network error (fetch failed)
+    if (error.name === 'TypeError' || error.message.includes('fetch')) {
+      console.log("Creating network error");
+      const networkError = new Error('Network error. Please check your connection.');
+      networkError.request = true;
+      throw networkError;
+    }
+    
+    // Otherwise, throw the original error
+    console.log("Throwing original error");
+    error.request = true;
+    throw error;
+  }
 };
+
+// Create axios-like API instance for easier use
+const api = {
+  get: (url, config = {}) => apiFetch(url, { method: 'GET', ...config }),
+  post: (url, data, config = {}) => apiFetch(url, { 
+    method: 'POST', 
+    body: JSON.stringify(data),
+    ...config 
+  }),
+  put: (url, data, config = {}) => apiFetch(url, { 
+    method: 'PUT', 
+    body: JSON.stringify(data),
+    ...config 
+  }),
+  delete: (url, config = {}) => apiFetch(url, { method: 'DELETE', ...config }),
+};
+
+export default api;
 
 // Auth APIs
 export const authAPI = {

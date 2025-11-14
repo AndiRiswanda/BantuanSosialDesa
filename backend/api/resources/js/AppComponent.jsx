@@ -7,17 +7,17 @@ import FeaturesSection from "./components/layout/FeaturesSection";
 import PenyaluranPage from "./components/pages/PenyaluranPage";
 import LoginSelection from "./components/auth/LoginSelection";
 import PengaduanSection from "./components/pages/PengaduanSection";
-import DonorLoginPage from "./components/auth/donor/DonorLoginPage";
-import DonorRegisterPage from "./components/auth/donor/DonorRegisterPage";
+import DonorLoginPage from "./components/auth/donatur/DonorLoginPage";
+import DonorRegisterPage from "./components/auth/donatur/DonorRegisterPage";
 import RecipientLoginPage from "./components/auth/recipient/RecipientLoginPage";
 import RecipientRegisterPage from "./components/auth/recipient/RecipientRegisterPage";
 import AdminLoginPage from "./components/auth/AdminLoginPage";
-import DonorDashboard from "./components/pages/donor/DonorDashboard";
-import DonorPrograms from "./components/pages/donor/DonorPrograms";
-import DonorNewDonation from "./components/pages/donor/DonorNewDonation";
-import DonorProgramDetail from "./components/pages/donor/DonorProgramDetail";
-import DonorProfile from "./components/pages/donor/DonorProfile";
-import DonorProfileEdit from "./components/pages/donor/DonorProfileEdit";
+import DonorDashboard from "./components/pages/donatur/DonorDashboard";
+import DonorPrograms from "./components/pages/donatur/DonorPrograms";
+import DonorNewDonation from "./components/pages/donatur/DonorNewDonation";
+import DonorProgramDetail from "./components/pages/donatur/DonorProgramDetail";
+import DonorProfile from "./components/pages/donatur/DonorProfile";
+import DonorProfileEdit from "./components/pages/donatur/DonorProfileEdit";
 import RecipientDashboard from "./components/pages/recipient/RecipientDashboard";
 import RecipientPrograms from "./components/pages/recipient/RecipientPrograms";
 import RecipientApplication from "./components/pages/recipient/RecipientApplication";
@@ -49,7 +49,7 @@ const HomePage = () => (
 
 function App() {
   const { pathname } = useLocation();
-  const hideDefaultNavbar = pathname.startsWith("/donor") || pathname.startsWith("/penerima") || pathname.startsWith("/admin");
+  const hideDefaultNavbar = pathname.startsWith("/donatur") || pathname.startsWith("/penerima") || pathname.startsWith("/admin");
   return (
     <AuthProvider>
       <div className="font-sans flex flex-col min-h-screen">
@@ -67,12 +67,12 @@ function App() {
             <Route path="/register/penerima" element={<RecipientRegisterPage />} />
             
             {/* Protected Donor Routes */}
-            <Route path="/donor" element={<ProtectedRoute allowedTypes={['donor']}><DonorDashboard /></ProtectedRoute>} />
-            <Route path="/donor/programku" element={<ProtectedRoute allowedTypes={['donor']}><DonorPrograms /></ProtectedRoute>} />
-            <Route path="/donor/programku/:id" element={<ProtectedRoute allowedTypes={['donor']}><DonorProgramDetail /></ProtectedRoute>} />
-            <Route path="/donor/donasi-baru" element={<ProtectedRoute allowedTypes={['donor']}><DonorNewDonation /></ProtectedRoute>} />
-            <Route path="/donor/profil" element={<ProtectedRoute allowedTypes={['donor']}><DonorProfile /></ProtectedRoute>} />
-            <Route path="/donor/profil/edit" element={<ProtectedRoute allowedTypes={['donor']}><DonorProfileEdit /></ProtectedRoute>} />
+            <Route path="/donatur/dashboard" element={<ProtectedRoute allowedTypes={['donor']}><DonorDashboard /></ProtectedRoute>} />
+            <Route path="/donatur/programku" element={<ProtectedRoute allowedTypes={['donor']}><DonorPrograms /></ProtectedRoute>} />
+            <Route path="/donatur/programku/:id" element={<ProtectedRoute allowedTypes={['donor']}><DonorProgramDetail /></ProtectedRoute>} />
+            <Route path="/donatur/donasi-baru" element={<ProtectedRoute allowedTypes={['donor']}><DonorNewDonation /></ProtectedRoute>} />
+            <Route path="/donatur/profil" element={<ProtectedRoute allowedTypes={['donor']}><DonorProfile /></ProtectedRoute>} />
+            <Route path="/donatur/profil/edit" element={<ProtectedRoute allowedTypes={['donor']}><DonorProfileEdit /></ProtectedRoute>} />
             
             {/* Protected Recipient Routes */}
             <Route path="/penerima" element={<ProtectedRoute allowedTypes={['recipient']}><RecipientDashboard /></ProtectedRoute>} />
