@@ -15,9 +15,9 @@ use App\Http\Controllers\ProgramController;
 */
 
 // Public routes
-Route::post('/login/donor', [AuthController::class, 'loginDonor']);
+Route::post('/login/donatur', [AuthController::class, 'loginDonor']);
 Route::post('/login/recipient', [AuthController::class, 'loginRecipient']);
-Route::post('/register/donor', [AuthController::class, 'registerDonor']);
+Route::post('/register/donatur', [AuthController::class, 'registerDonor']);
 Route::post('/register/recipient', [AuthController::class, 'registerRecipient']);
 Route::post('/admin/login', [AuthController::class, 'adminLogin']);
 
@@ -35,8 +35,8 @@ Route::middleware('auth:sanctum')->group(function () {
         return $request->user();
     });
     
-    // Donor routes (Donatur)
-    Route::prefix('donor')->middleware('role:donatur')->group(function () {
+    // Donatur routes
+    Route::prefix('donatur')->middleware('role:donatur')->group(function () {
         Route::get('/dashboard', [DonorController::class, 'dashboard']);
         Route::get('/categories', [DonorController::class, 'categories']);
         Route::get('/programs', [DonorController::class, 'programs']);
@@ -82,15 +82,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/transaksi/{id}', [AdminController::class, 'updateTransaksi']);
         
         // Verification management
-        Route::get('/verifications/donors', [AdminController::class, 'pendingDonors']);
-        Route::put('/verifications/donors/{id}', [AdminController::class, 'verifyDonor']);
+        Route::get('/verifications/donatur', [AdminController::class, 'pendingDonors']);
+        Route::put('/verifications/donatur/{id}', [AdminController::class, 'verifyDonor']);
         Route::get('/verifications/recipients', [AdminController::class, 'pendingRecipients']);
         Route::put('/verifications/recipients/{id}', [AdminController::class, 'verifyRecipient']);
         
-        // Donor management
-        Route::get('/donors', [AdminController::class, 'donors']);
-        Route::get('/donors/{id}', [AdminController::class, 'donorDetail']);
-        Route::put('/donors/{id}', [AdminController::class, 'updateDonor']);
+        // Donatur management
+        Route::get('/donatur', [AdminController::class, 'donors']);
+        Route::get('/donatur/{id}', [AdminController::class, 'donorDetail']);
+        Route::put('/donatur/{id}', [AdminController::class, 'updateDonor']);
         
         // Recipient management
         Route::get('/recipients', [AdminController::class, 'recipients']);

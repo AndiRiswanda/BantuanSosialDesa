@@ -98,6 +98,8 @@ CREATE TABLE `program_bantuan` (
   `tanggal_selesai` DATE NULL,
   `jenis_bantuan` ENUM('uang', 'barang') NOT NULL,
   `jumlah_bantuan` DECIMAL(15,2) NOT NULL DEFAULT 0.00,
+  `kriteria_penerima` TEXT NULL,
+  `keterangan` TEXT NULL,
   `status` ENUM('aktif', 'selesai', 'ditunda') NOT NULL DEFAULT 'aktif',
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

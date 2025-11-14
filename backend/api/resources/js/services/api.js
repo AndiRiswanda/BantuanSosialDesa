@@ -2,12 +2,12 @@ import axios from 'axios';
 
 // Create axios instance with default config
 const api = axios.create({
-  baseURL: 'http://localhost:8000/api',
+  baseURL: 'http://localhost:8000',
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   },
-  withCredentials: true, // Important for CORS with credentials
+  withCredentials: false, // Change to false for token-based auth
 });
 
 // Request interceptor to add auth token
@@ -28,9 +28,15 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    console.log("=== AXIOS INTERCEPTOR ERROR ===");
+    console.log("Error:", error);
+    console.log("Error response:", error.response);
+    console.log("Error response data:", error.response?.data);
+    console.log("==============================");
+    
     if (error.response) {
       // Server responded with error
-      const { status, data } = error.response;
+      const { status } = error.response;
       
       if (status === 401) {
         // Unauthorized - clear token and redirect to login
@@ -39,39 +45,38 @@ api.interceptors.response.use(
         window.location.href = '/login';
       }
       
-      // Return error message
-      return Promise.reject(data);
+      // Keep the original error structure so DonorLoginPage can access error.response.data
+      // Don't modify the error, just reject it as-is
+      return Promise.reject(error);
     }
     
     // Network error
-    return Promise.reject({
-      message: 'Network error. Please check your connection.',
-    });
+    return Promise.reject(error);
   }
 );
 
 // Authentication APIs
 export const authAPI = {
   // Admin login
-  adminLogin: (credentials) => api.post('/admin/login', credentials),
+  adminLogin: (credentials) => api.post('/api/admin/login', credentials),
   
-  // Donor login
-  donorLogin: (credentials) => api.post('/login/donor', credentials),
+  // Donatur login
+  donorLogin: (credentials) => api.post('/api/login/donatur', credentials),
   
   // Recipient login
-  recipientLogin: (credentials) => api.post('/login/recipient', credentials),
+  recipientLogin: (credentials) => api.post('/api/login/recipient', credentials),
   
-  // Register donor
-  registerDonor: (data) => api.post('/register/donor', data),
+  // Register donatur
+  registerDonor: (data) => api.post('/api/register/donatur', data),
   
   // Register recipient
-  registerRecipient: (data) => api.post('/register/recipient', data),
+  registerRecipient: (data) => api.post('/api/register/recipient', data),
   
   // Logout
-  logout: () => api.post('/logout'),
+  logout: () => api.post('/api/logout'),
   
   // Get current user
-  getUser: () => api.get('/user'),
+  getUser: () => api.get('/api/user'),
 };
 
 // Admin APIs

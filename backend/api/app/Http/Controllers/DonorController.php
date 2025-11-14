@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ProgramBantuan;
 use App\Models\KategoriBantuan;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class DonorController extends Controller
 {
@@ -15,14 +16,31 @@ class DonorController extends Controller
         // Get donor statistics
         $totalPrograms = $donatur->programBantuan()->count();
         $activePrograms = $donatur->programBantuan()->where('status', 'aktif')->count();
-        $totalBantuan = $donatur->programBantuan()->sum('jumlah_bantuan');
+        
+        // Separate statistics for 'uang' and 'barang'
+        $totalBantuanUang = $donatur->programBantuan()
+            ->where('jenis_bantuan', 'uang')
+            ->sum('jumlah_bantuan');
+            
+        $totalBantuanBarang = $donatur->programBantuan()
+            ->where('jenis_bantuan', 'barang')
+            ->sum('jumlah_bantuan');
+        
+        // Count total recipients across all programs
+        $totalPenerima = DB::table('penerima_program')
+            ->join('program_bantuan', 'penerima_program.id_program', '=', 'program_bantuan.id_program')
+            ->where('program_bantuan.id_donatur', $donatur->id_donatur)
+            ->distinct('penerima_program.id_penerima')
+            ->count('penerima_program.id_penerima');
         
         return response()->json([
             'user' => $donatur,
             'stats' => [
                 'total_programs' => $totalPrograms,
                 'active_programs' => $activePrograms,
-                'total_bantuan' => $totalBantuan,
+                'total_bantuan_uang' => $totalBantuanUang,
+                'total_bantuan_barang' => $totalBantuanBarang,
+                'total_penerima' => $totalPenerima,
             ],
             'recent_programs' => $donatur->programBantuan()
                 ->with('kategori')
@@ -49,23 +67,37 @@ class DonorController extends Controller
         $program = ProgramBantuan::with([
             'kategori', 
             'donatur', 
-            'penerimaPrograms' => function($query) {
-                $query->with(['penerima', 'transaksiPenyaluran']);
-            }
+            'penerimaPrograms.penerima',
+            'penerimaPrograms.transaksiPenyaluran'
         ])->findOrFail($id);
         
         // Calculate statistics
         $totalPenerima = $program->penerimaPrograms->count();
-        $penerimaDisetujui = $program->penerimaPrograms->where('status_seleksi', 'disetujui')->count();
+        $penerimaDisetujui = $program->penerimaPrograms->where('status_penerimaan', 'selesai')->count();
         
-        // Count tersalurkan (with transaksi and status selesai)
+        // Count tersalurkan (with transaksi)
         $totalTersalurkan = $program->penerimaPrograms->filter(function($pp) {
-            return $pp->transaksiPenyaluran && 
-                   $pp->transaksiPenyaluran->where('status_penyaluran', 'selesai')->count() > 0;
+            return $pp->transaksiPenyaluran && $pp->transaksiPenyaluran->count() > 0;
         })->count();
         
+        // Format response data untuk memastikan semua field terkirim
+        $programData = $program->toArray();
+        
+        // Pastikan penerima_programs terisi dengan benar
+        if (isset($programData['penerima_programs'])) {
+            foreach ($programData['penerima_programs'] as &$pp) {
+                // Pastikan data penerima ada
+                if (isset($pp['penerima'])) {
+                    // Tidak ada yang perlu diubah, data sudah benar
+                } else {
+                    // Jika tidak ada, set ke null
+                    $pp['penerima'] = null;
+                }
+            }
+        }
+        
         return response()->json([
-            'program' => $program,
+            'program' => $programData,
             'statistics' => [
                 'total_penerima' => $totalPenerima,
                 'penerima_disetujui' => $penerimaDisetujui,
@@ -86,6 +118,9 @@ class DonorController extends Controller
             'tanggal_selesai' => 'nullable|date|after:tanggal_mulai',
             'jenis_bantuan' => 'required|in:uang,barang',
             'jumlah_bantuan' => 'required|numeric|min:0',
+            'kriteria_penerima' => 'nullable|string',
+            'keterangan' => 'nullable|string',
+            'keterangan_penerima' => 'nullable|string', // Accept both field names
         ], [
             'id_kategori.required' => 'Kategori bantuan harus dipilih.',
             'id_kategori.exists' => 'Kategori bantuan tidak valid.',
@@ -102,6 +137,9 @@ class DonorController extends Controller
             'jumlah_bantuan.min' => 'Jumlah bantuan tidak boleh negatif.',
         ]);
 
+        // Map keterangan_penerima to keterangan for backward compatibility
+        $keterangan = $request->keterangan ?? $request->keterangan_penerima;
+
         $program = $donatur->programBantuan()->create([
             'id_kategori' => $request->id_kategori,
             'nama_program' => $request->nama_program,
@@ -110,6 +148,8 @@ class DonorController extends Controller
             'tanggal_selesai' => $request->tanggal_selesai,
             'jenis_bantuan' => $request->jenis_bantuan,
             'jumlah_bantuan' => $request->jumlah_bantuan,
+            'kriteria_penerima' => $request->kriteria_penerima,
+            'keterangan' => $keterangan, // Use the mapped value
             'status' => 'aktif',
         ]);
 
@@ -148,28 +188,89 @@ class DonorController extends Controller
 
     public function profile(Request $request)
     {
-        return response()->json($request->user());
+        $user = $request->user();
+        \Log::info('Profile Request', [
+            'user' => $user,
+            'user_type' => get_class($user),
+            'user_id' => $user ? $user->getKey() : null,
+        ]);
+        
+        return response()->json($user);
     }
 
     public function updateProfile(Request $request)
     {
-        $donatur = $request->user();
-        
-        $request->validate([
-            'nama_organisasi' => 'string|max:100',
-            'nomor_telepon' => 'nullable|string|max:15',
-            'alamat' => 'nullable|string',
-        ], [
-            'nama_organisasi.max' => 'Nama organisasi maksimal 100 karakter.',
-            'nomor_telepon.max' => 'Nomor telepon maksimal 15 karakter.',
-        ]);
+        try {
+            $donatur = $request->user();
+            
+            // Log incoming request
+            \Log::info('Update Profile Request', [
+                'donor_id' => $donatur->id_donatur,
+                'request_data' => $request->all(),
+            ]);
+            
+            // Validate input
+            $validated = $request->validate([
+                'nama_organisasi' => 'required|string|max:100',
+                'email' => 'required|email|unique:donatur,email,' . $donatur->id_donatur . ',id_donatur|max:100',
+                'alamat' => 'nullable|string|max:255',
+                'nomor_telepon' => 'nullable|string|max:15',
+                'jenis_instansi' => 'required|in:perusahaan,yayasan,perorangan',
+            ], [
+                'nama_organisasi.required' => 'Nama organisasi wajib diisi.',
+                'nama_organisasi.max' => 'Nama organisasi maksimal 100 karakter.',
+                'email.required' => 'Email wajib diisi.',
+                'email.email' => 'Format email tidak valid.',
+                'email.unique' => 'Email sudah digunakan oleh donatur lain.',
+                'email.max' => 'Email maksimal 100 karakter.',
+                'alamat.max' => 'Alamat maksimal 255 karakter.',
+                'nomor_telepon.max' => 'Nomor telepon maksimal 15 karakter.',
+                'jenis_instansi.required' => 'Jenis instansi wajib dipilih.',
+                'jenis_instansi.in' => 'Jenis instansi harus perusahaan, yayasan, atau perorangan.',
+            ]);
 
-        $donatur->update($request->only(['nama_organisasi', 'nomor_telepon', 'alamat']));
+            // Update profile
+            $donatur->update([
+                'nama_organisasi' => $validated['nama_organisasi'],
+                'email' => $validated['email'],
+                'alamat' => $validated['alamat'] ?? $donatur->alamat,
+                'nomor_telepon' => $validated['nomor_telepon'] ?? $donatur->nomor_telepon,
+                'jenis_instansi' => $validated['jenis_instansi'],
+            ]);
 
-        return response()->json([
-            'message' => 'Profil berhasil diperbarui.',
-            'user' => $donatur
-        ]);
+            // Log successful update
+            \Log::info('Donor Profile Updated Successfully', [
+                'donor_id' => $donatur->id_donatur,
+                'updated_fields' => array_keys($validated),
+            ]);
+
+            // Get fresh data from database
+            $freshData = $donatur->fresh();
+
+            return response()->json([
+                'message' => 'Profil berhasil diperbarui.',
+                'data' => $freshData
+            ], 200);
+            
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // Log validation errors
+            \Log::warning('Profile Update Validation Failed', [
+                'errors' => $e->errors(),
+            ]);
+            throw $e; // Re-throw to return 422 response
+            
+        } catch (\Exception $e) {
+            // Log unexpected errors
+            \Log::error('Profile Update Failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat memperbarui profil.',
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal Server Error'
+            ], 500);
+        }
     }
 
     public function deleteProgram(Request $request, $id)
@@ -208,11 +309,11 @@ class DonorController extends Controller
             ->with(['penerima', 'transaksiPenyaluran'])
             ->get();
             
-        // Group by status
+        // Group by status_penerimaan (not status_seleksi)
         $grouped = [
-            'pending' => $recipients->where('status_seleksi', 'pending'),
-            'disetujui' => $recipients->where('status_seleksi', 'disetujui'),
-            'ditolak' => $recipients->where('status_seleksi', 'ditolak'),
+            'menunggu' => $recipients->where('status_penerimaan', 'menunggu'),
+            'selesai' => $recipients->where('status_penerimaan', 'selesai'),
+            'batal' => $recipients->where('status_penerimaan', 'batal'),
         ];
         
         return response()->json([
@@ -221,9 +322,9 @@ class DonorController extends Controller
             'grouped' => $grouped,
             'summary' => [
                 'total' => $recipients->count(),
-                'pending' => $grouped['pending']->count(),
-                'disetujui' => $grouped['disetujui']->count(),
-                'ditolak' => $grouped['ditolak']->count(),
+                'menunggu' => $grouped['menunggu']->count(),
+                'selesai' => $grouped['selesai']->count(),
+                'batal' => $grouped['batal']->count(),
             ]
         ]);
     }
