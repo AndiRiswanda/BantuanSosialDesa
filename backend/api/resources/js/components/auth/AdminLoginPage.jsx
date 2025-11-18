@@ -8,6 +8,7 @@ export default function AdminLoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [localError, setLocalError] = useState("");
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -16,7 +17,13 @@ export default function AdminLoginPage() {
     const result = await login({ email, password }, 'admin');
     
     if (result.success) {
-      navigate("/admin/dashboard");
+      // Show success modal
+      setShowSuccessModal(true);
+      
+      // Redirect after 2 seconds
+      setTimeout(() => {
+        navigate("/admin/dashboard");
+      }, 2000);
     } else {
       setLocalError(result.error);
     }
@@ -67,6 +74,35 @@ export default function AdminLoginPage() {
           </button>
         </form>
       </div>
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl transform animate-scale-in">
+            <div className="text-center">
+              {/* Success Icon */}
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+                <svg className="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              
+              {/* Success Message */}
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                Login Berhasil!
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Selamat datang kembali. Anda akan dialihkan ke dashboard...
+              </p>
+              
+              {/* Loading Spinner */}
+              <div className="flex justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

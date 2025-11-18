@@ -1,25 +1,48 @@
+import { useState } from "react";
 import recipientIcon from "../../../assets/iconPenerima 1.png";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
 import { useAuth } from "../../../contexts/AuthContext";
 
 export default function RecipientLoginPage() {
   const navigate = useNavigate();
-  const { login, loading } = useAuth();
-  const [no_kk, setNoKK] = useState("");
+  const { login } = useAuth();
+  const [noKK, setNoKK] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-  const onSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
     setError("");
-    
-    const result = await login({ no_kk, password }, 'recipient');
-    
-    if (result.success) {
-      navigate("/penerima");
-    } else {
-      setError(result.error);
+
+    try {
+      const result = await login({
+        no_kk: noKK,
+        password: password
+      }, 'recipient');
+
+      console.log('Login result:', result);
+
+      if (result.success) {
+        console.log('Login successful, showing success modal...');
+        // Show success modal
+        setShowSuccessModal(true);
+        
+        // Redirect after 2 seconds
+        setTimeout(() => {
+          navigate('/penerima');
+        }, 2000);
+      } else {
+        // Use the specific error message from result
+        setError(result.error || 'Login gagal - Tidak dapat masuk ke sistem');
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setError(err.message || 'Terjadi kesalahan saat login');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -61,12 +84,12 @@ export default function RecipientLoginPage() {
             </h1>
 
             {error && (
-              <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
                 {error}
               </div>
             )}
 
-            <form className="space-y-5" onSubmit={onSubmit}>
+            <form className="space-y-5" onSubmit={handleSubmit}>
               {/* No. KK */}
               <div>
                 <label htmlFor="noKK" className="block text-sm font-semibold text-gray-700 mb-2">
@@ -86,10 +109,10 @@ export default function RecipientLoginPage() {
                     type="text"
                     placeholder="Masukkan No. KK Anda"
                     className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all text-sm"
-                    value={no_kk}
+                    value={noKK}
                     onChange={(e) => setNoKK(e.target.value)}
-                    disabled={loading}
                     required
+                    disabled={loading}
                   />
                 </div>
               </div>
@@ -115,8 +138,8 @@ export default function RecipientLoginPage() {
                     className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all text-sm"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    disabled={loading}
                     required
+                    disabled={loading}
                   />
                 </div>
               </div>
@@ -124,10 +147,10 @@ export default function RecipientLoginPage() {
               {/* Submit Button */}
               <button
                 type="submit"
-                className="w-full bg-green-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-green-700 hover:shadow-lg hover:scale-105 transition-all duration-300 active:scale-95 mt-6 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                className="w-full bg-green-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-green-700 hover:shadow-lg hover:scale-105 transition-all duration-300 active:scale-95 mt-6 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                 disabled={loading}
               >
-                {loading ? "Memproses..." : "Masuk"}
+                {loading ? 'Memproses...' : 'Masuk'}
               </button>
 
               {/* Register Link */}
@@ -145,6 +168,35 @@ export default function RecipientLoginPage() {
           </div>
         </div>
       </div>
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl transform animate-scale-in">
+            <div className="text-center">
+              {/* Success Icon */}
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+                <svg className="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              
+              {/* Success Message */}
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                Login Berhasil!
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Selamat datang kembali. Anda akan dialihkan ke dashboard...
+              </p>
+              
+              {/* Loading Spinner */}
+              <div className="flex justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

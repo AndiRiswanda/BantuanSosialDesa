@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import NavbarRecipient from "../../layout/NavbarRecipient";
 import { Calendar, Users2, Image as ImageIcon, Info, Check, Clock4 } from "lucide-react";
+import { recipientAPI } from "../../../utils/api";
 
 function Pill({ children, className = "" }) {
   return (
@@ -29,6 +30,36 @@ export default function RecipientProgramDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [tab, setTab] = useState("detail"); // detail | jadwal | penerima | dokumentasi
+  const [currentUserKK, setCurrentUserKK] = useState(null);
+
+  // Fetch current user's No. KK
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const response = await recipientAPI.getProfile();
+        if (response.success && response.profile) {
+          setCurrentUserKK(response.profile.no_kk);
+        }
+      } catch (err) {
+        console.error('Error fetching user profile:', err);
+      }
+    };
+    fetchUserProfile();
+  }, []);
+
+  // Function to mask KK number if it's not the current user's
+  const maskKK = (kk) => {
+    if (!kk) return "N/A";
+    if (kk === currentUserKK) {
+      // Don't mask current user's KK
+      return kk;
+    }
+    // Mask other users' KK: show first 4 and last 4 digits
+    if (kk.length >= 8) {
+      return `${kk.substring(0, 4)}****${kk.substring(kk.length - 4)}`;
+    }
+    return kk;
+  };
 
   // Mock program data; replace with API later
   const program = useMemo(
@@ -51,31 +82,31 @@ export default function RecipientProgramDetail() {
       recipients: Array.from({ length: 10 }).map((_, i) => ({
         no: i + 1,
         kk: [
-          "731306112204",
-          "3601****3688",
-          "3601****5578",
-          "3601****7890",
-          "3601****1234",
-          "3601****4932",
-          "3601****7248",
-          "3601****1256",
-          "3601****2523",
-          "3601****9988",
+          "3601012501250001", // Ahmad Dahlan
+          "3601012501250002", // Siti Aminah
+          "3601012501250003", // Budi Santoso
+          "3601012501250004", // Ratna Dewi
+          "3601012501250005", // Joko Widodo
+          "3601012501250006", // Dewi Lestari
+          "3601012501250007", // Agus Salim
+          "3601012501250008", // Nur Halimah
+          "3601012501250009", // Rina Susanti
+          "3601012501250010", // Hendra Wijaya
         ][i],
         nama: [
-          "Ahmad Yani",
+          "Ahmad Dahlan",
           "Siti Aminah",
+          "Budi Santoso",
           "Ratna Dewi",
-          "Joko Susilo",
-          "Siti Nurhayati",
-          "Rina Mariana",
-          "Maya Lestari",
-          "Fitri Handayani",
-          "Dewi Paramita",
-          "Nur Aini",
+          "Joko Widodo",
+          "Dewi Lestari",
+          "Agus Salim",
+          "Nur Halimah",
+          "Rina Susanti",
+          "Hendra Wijaya",
         ][i],
         alamat: [
-          "Jl. Melati No. 12, RT 01/02",
+          "Jl. Merdeka No. 10, RT 01/02",
           "Jl. Mawar 3, RT 02/03",
           "Jl. Kenanga No. 5, RT 03/04",
           "Jl. Anggrek No. 13, RT 01/02",
@@ -83,7 +114,7 @@ export default function RecipientProgramDetail() {
           "Jl. Merpati 11, RT 04/02",
           "Jl. Flamboyan 8, RT 03/02",
           "Jl. Pelita 1, RT 01/02",
-          "Jl. Pelita 1, RT 01/02",
+          "Jl. Dahlia 7, RT 02/01",
           "Jl. Kebon 9, RT 02/03",
         ][i],
         tahap: "Tahap 1",
@@ -256,7 +287,7 @@ export default function RecipientProgramDetail() {
                     {program.recipients.map((r) => (
                       <tr key={r.no} className="border-b last:border-0">
                         <td className="px-3 py-2 whitespace-nowrap">{r.no}</td>
-                        <td className="px-3 py-2 whitespace-nowrap">{r.kk}</td>
+                        <td className="px-3 py-2 whitespace-nowrap">{maskKK(r.kk)}</td>
                         <td className="px-3 py-2 whitespace-nowrap">{r.nama}</td>
                         <td className="px-3 py-2 whitespace-nowrap">{r.alamat}</td>
                         <td className="px-3 py-2 whitespace-nowrap">{r.tahap}</td>

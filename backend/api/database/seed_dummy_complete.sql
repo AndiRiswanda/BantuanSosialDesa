@@ -37,17 +37,19 @@ INSERT INTO `donatur` (`nama_organisasi`, `email`, `password`, `alamat`, `nomor_
 -- 4. PENERIMA
 -- ================================================
 -- Password: penerima123
+-- Catatan: Kolom sekarang menggunakan VARCHAR untuk pekerjaan, pekerjaan_istri, status_anak
+-- penghasilan menggunakan ENUM dengan format: '< Rp 500.000', 'Rp 500.000 - Rp 1.000.000', dll
 INSERT INTO `penerima` (`no_kk`, `password`, `nama_kepala`, `alamat`, `nomor_telepon`, `pekerjaan`, `pekerjaan_istri`, `status_anak`, `jumlah_tanggungan`, `penghasilan`, `status_verifikasi`) VALUES
-('3601012501250001', '$2y$10$LbmeDR/SLXNmFo/ORt8oc.l5P417dcR77uByu116Yev.dV81ARsjG', 'Ahmad Dahlan', 'Jl. Melati No. 12, RT 01/02, Desa Sejahtera', '0812-1111-2222', 'Buruh Harian', 'ibu rumah tangga', 'sekolah', 4, '< 500.000', 'disetujui'),
-('3601012501250002', '$2y$10$LbmeDR/SLXNmFo/ORt8oc.l5P417dcR77uByu116Yev.dV81ARsjG', 'Siti Aminah', 'Jl. Mawar No. 8, RT 02/03, Desa Sejahtera', '0813-2222-3333', 'Pedagang Kecil', 'bekerja & berpenghasilan', 'sekolah', 3, '500.000 - 1.000.000', 'disetujui'),
-('3601012501250003', '$2y$10$LbmeDR/SLXNmFo/ORt8oc.l5P417dcR77uByu116Yev.dV81ARsjG', 'Budi Santoso', 'Jl. Kenanga No. 5, RT 03/03, Desa Sejahtera', '0814-3333-4444', 'Tukang Bangunan', 'ibu rumah tangga', 'sekolah', 5, '500.000 - 1.000.000', 'disetujui'),
-('3601012501250004', '$2y$10$LbmeDR/SLXNmFo/ORt8oc.l5P417dcR77uByu116Yev.dV81ARsjG', 'Ratna Dewi', 'Jl. Anggrek No. 15, RT 01/02, Desa Sejahtera', '0815-4444-5555', 'Penjahit', 'kepala keluarga', 'sekolah', 2, '< 500.000', 'disetujui'),
-('3601012501250005', '$2y$10$LbmeDR/SLXNmFo/ORt8oc.l5P417dcR77uByu116Yev.dV81ARsjG', 'Joko Widodo', 'Jl. Flamboyan No. 20, RT 04/01, Desa Sejahtera', '0816-5555-6666', 'Petani', 'ibu rumah tangga', 'bayi', 3, '500.000 - 1.000.000', 'disetujui'),
-('3601012501250006', '$2y$10$LbmeDR/SLXNmFo/ORt8oc.l5P417dcR77uByu116Yev.dV81ARsjG', 'Dewi Lestari', 'Jl. Dahlia No. 7, RT 02/01, Desa Sejahtera', '0817-6666-7777', 'Tukang Cuci', 'kepala keluarga', 'tidak bekerja', 4, '< 500.000', 'disetujui'),
-('3601012501250007', '$2y$10$LbmeDR/SLXNmFo/ORt8oc.l5P417dcR77uByu116Yev.dV81ARsjG', 'Agus Salim', 'Jl. Bougenville No. 33, RT 05/02, Desa Sejahtera', '0818-7777-8888', 'Supir Angkot', 'ibu rumah tangga', 'sekolah', 3, '500.000 - 1.000.000', 'disetujui'),
-('3601012501250008', '$2y$10$LbmeDR/SLXNmFo/ORt8oc.l5P417dcR77uByu116Yev.dV81ARsjG', 'Nur Halimah', 'Jl. Sakura No. 18, RT 03/02, Desa Sejahtera', '0819-8888-9999', 'Pedagang Sayur', 'kepala keluarga', 'sekolah', 2, '< 500.000', 'disetujui'),
-('3601012501250009', '$2y$10$LbmeDR/SLXNmFo/ORt8oc.l5P417dcR77uByu116Yev.dV81ARsjG', 'Rina Susanti', 'Jl. Teratai No. 9, RT 01/03, Desa Sejahtera', '0811-9999-0000', 'Buruh Pabrik', 'ibu rumah tangga', 'sekolah', 4, '1.000.001 - 2.000.000', 'pending'),
-('3601012501250010', '$2y$10$LbmeDR/SLXNmFo/ORt8oc.l5P417dcR77uByu116Yev.dV81ARsjG', 'Hendra Wijaya', 'Jl. Tulip No. 25, RT 04/02, Desa Sejahtera', '0812-0000-1111', 'Ojek Online', 'bekerja & berpenghasilan', 'sekolah', 3, '1.000.001 - 2.000.000', 'pending');
+('3601012501250001', '$2y$10$LbmeDR/SLXNmFo/ORt8oc.l5P417dcR77uByu116Yev.dV81ARsjG', 'Ahmad Dahlan', 'Jl. Melati No. 12, RT 01/02, Desa Sejahtera', '0812-1111-2222', 'Buruh Harian', 'Ibu Rumah Tangga (IRT)', 'SD', 4, '< Rp 500.000', 'disetujui'),
+('3601012501250002', '$2y$10$LbmeDR/SLXNmFo/ORt8oc.l5P417dcR77uByu116Yev.dV81ARsjG', 'Siti Aminah', 'Jl. Mawar No. 8, RT 02/03, Desa Sejahtera', '0813-2222-3333', 'Pedagang', 'Pedagang', 'SMP', 3, 'Rp 500.000 - Rp 1.000.000', 'disetujui'),
+('3601012501250003', '$2y$10$LbmeDR/SLXNmFo/ORt8oc.l5P417dcR77uByu116Yev.dV81ARsjG', 'Budi Santoso', 'Jl. Kenanga No. 5, RT 03/03, Desa Sejahtera', '0814-3333-4444', 'Buruh Harian', 'Ibu Rumah Tangga (IRT)', 'SD', 5, 'Rp 500.000 - Rp 1.000.000', 'disetujui'),
+('3601012501250004', '$2y$10$LbmeDR/SLXNmFo/ORt8oc.l5P417dcR77uByu116Yev.dV81ARsjG', 'Ratna Dewi', 'Jl. Anggrek No. 15, RT 01/02, Desa Sejahtera', '0815-4444-5555', 'Wiraswasta', 'Tidak bekerja', 'SMA/SMK', 2, '< Rp 500.000', 'disetujui'),
+('3601012501250005', '$2y$10$LbmeDR/SLXNmFo/ORt8oc.l5P417dcR77uByu116Yev.dV81ARsjG', 'Joko Widodo', 'Jl. Flamboyan No. 20, RT 04/01, Desa Sejahtera', '0816-5555-6666', 'Petani', 'Ibu Rumah Tangga (IRT)', 'Belum sekolah', 3, 'Rp 500.000 - Rp 1.000.000', 'disetujui'),
+('3601012501250006', '$2y$10$LbmeDR/SLXNmFo/ORt8oc.l5P417dcR77uByu116Yev.dV81ARsjG', 'Dewi Lestari', 'Jl. Dahlia No. 7, RT 02/01, Desa Sejahtera', '0817-6666-7777', 'Buruh Harian', 'Tidak bekerja', 'Putus sekolah', 4, '< Rp 500.000', 'disetujui'),
+('3601012501250007', '$2y$10$LbmeDR/SLXNmFo/ORt8oc.l5P417dcR77uByu116Yev.dV81ARsjG', 'Agus Salim', 'Jl. Bougenville No. 33, RT 05/02, Desa Sejahtera', '0818-7777-8888', 'Karyawan Swasta', 'Ibu Rumah Tangga (IRT)', 'SD', 3, 'Rp 500.000 - Rp 1.000.000', 'disetujui'),
+('3601012501250008', '$2y$10$LbmeDR/SLXNmFo/ORt8oc.l5P417dcR77uByu116Yev.dV81ARsjG', 'Nur Halimah', 'Jl. Sakura No. 18, RT 03/02, Desa Sejahtera', '0819-8888-9999', 'Pedagang', 'Tidak bekerja', 'SMP', 2, '< Rp 500.000', 'disetujui'),
+('3601012501250009', '$2y$10$LbmeDR/SLXNmFo/ORt8oc.l5P417dcR77uByu116Yev.dV81ARsjG', 'Rina Susanti', 'Jl. Teratai No. 9, RT 01/03, Desa Sejahtera', '0811-9999-0000', 'Buruh Harian', 'Ibu Rumah Tangga (IRT)', 'SD', 4, 'Rp 1.000.000 - Rp 2.000.000', 'pending'),
+('3601012501250010', '$2y$10$LbmeDR/SLXNmFo/ORt8oc.l5P417dcR77uByu116Yev.dV81ARsjG', 'Hendra Wijaya', 'Jl. Tulip No. 25, RT 04/02, Desa Sejahtera', '0812-0000-1111', 'Wiraswasta', 'Pedagang', 'SMA/SMK', 3, 'Rp 1.000.000 - Rp 2.000.000', 'pending');
 
 -- ================================================
 -- 5. PROGRAM BANTUAN

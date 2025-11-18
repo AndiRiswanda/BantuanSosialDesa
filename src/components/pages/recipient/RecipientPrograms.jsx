@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import NavbarRecipient from "../../layout/NavbarRecipient";
-import { Filter, Search, Package, Wallet, BadgeCheck } from "lucide-react";
+import { Filter, Search, Package, Wallet, BadgeCheck, AlertTriangle } from "lucide-react";
+import { recipientAPI } from "../../../utils/api";
 
 function StatusPill({ active, children, onClick }) {
   return (
@@ -112,44 +113,52 @@ function ProgramCard({ item }) {
 }
 
 export default function RecipientPrograms() {
-  // Mock data
-  const programs = useMemo(
-    () => [
-      {
-        id: 1,
-        title: "Pemberdayaan Ibu Rumah Tangga melalui Kebun Sayur",
-        donor: "Yayasan Peduli Negeri",
-        status: "Terjadwal",
-        type: "Barang",
-        start: "1 Oktober 2025",
-        end: "30 Desember 2025",
-        goods: "Bibit, polybag, pupuk organik",
-        amount: null,
-        progress: 20,
-        progressNote: "20/100 KK",
-        received: true,
-      },
-      {
-        id: 2,
-        title: "Bantuan Modal Usaha Mikro untuk Ibu Rumah Tangga",
-        donor: "PT Djurnu",
-        status: "Terjadwal",
-        type: "Uang",
-        start: "1 Oktober 2025",
-        end: "30 Desember 2025",
-        amount: "Rp. 250.000,00 (tiap bulan)",
-        goods: null,
-        progress: 50,
-        progressNote: "25/50 KK",
-        received: false,
-      },
-    ],
-    []
-  );
+  const [programs, setPrograms] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const [statusFilter, setStatusFilter] = useState("Semua"); // Semua | Terjadwal | Selesai
   const [typeFilter, setTypeFilter] = useState("Semua"); // Semua | Uang | Barang
   const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    fetchPrograms();
+  }, []);
+
+  const fetchPrograms = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await recipientAPI.getPrograms();
+      console.log('Programs data:', response);
+      
+      if (response.success && response.data) {
+        // Transform API data to match component structure
+        const transformedData = response.data.map(program => ({
+          id: program.id,
+          title: program.title,
+          donor: program.donor,
+          status: program.status === 'Aktif' ? 'Terjadwal' : 'Selesai',
+          type: program.type,
+          start: program.start,
+          end: program.end,
+          goods: program.goods,
+          amount: program.amount,
+          progress: program.progress || 0,
+          progressNote: program.progress_note || '',
+          received: program.received || false,
+        }));
+        setPrograms(transformedData);
+      } else {
+        setError('Gagal memuat data program');
+      }
+    } catch (err) {
+      console.error('Error fetching programs:', err);
+      setError(err.message || 'Gagal memuat data program');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filtered = useMemo(() => {
     return programs.filter((p) => {
@@ -160,6 +169,40 @@ export default function RecipientPrograms() {
       return okStatus && okType && okQuery;
     });
   }, [programs, statusFilter, typeFilter, query]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-[#E6EFFA]">
+        <NavbarRecipient />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
+            <p className="mt-4 text-slate-600">Memuat program...</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col bg-[#E6EFFA]">
+        <NavbarRecipient />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <AlertTriangle className="h-12 w-12 text-amber-600 mx-auto" />
+            <p className="mt-4 text-slate-600">{error}</p>
+            <button 
+              onClick={fetchPrograms}
+              className="mt-4 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+            >
+              Coba Lagi
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-[#E6EFFA]">

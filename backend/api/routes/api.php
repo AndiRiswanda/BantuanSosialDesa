@@ -59,6 +59,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/profile', [RecipientController::class, 'profile']);
         Route::put('/profile', [RecipientController::class, 'updateProfile']);
         Route::post('/documents', [RecipientController::class, 'uploadDocument']);
+        
+        // Schedules (Jadwal Penyaluran)
+        Route::get('/schedules', [RecipientController::class, 'schedules']);
+        Route::get('/programs/{id}/schedules', [RecipientController::class, 'programSchedules']);
     });
     
     // Admin routes
