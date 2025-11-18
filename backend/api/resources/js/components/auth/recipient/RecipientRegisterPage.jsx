@@ -12,6 +12,10 @@ export default function RecipientRegisterPage() {
     nama_kepala: "",
     alamat: "",
     nomor_telepon: "",
+    pekerjaan: "",
+    penghasilan: "",
+    pekerjaan_istri: "",
+    status_anak: "",
     password: "",
     password_confirmation: "",
     jumlah_tanggungan: 0,
@@ -21,6 +25,8 @@ export default function RecipientRegisterPage() {
   const [loading, setLoading] = useState(false);
   const [generalError, setGeneralError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [customPekerjaan, setCustomPekerjaan] = useState("");
+  const [customPekerjaanIstri, setCustomPekerjaanIstri] = useState("");
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -28,6 +34,13 @@ export default function RecipientRegisterPage() {
       ...prev,
       [name]: name === 'jumlah_tanggungan' ? parseInt(value) || 0 : value
     }));
+    // Clear custom input if user changes selection from "Lainnya"
+    if (name === 'pekerjaan' && value !== 'Lainnya') {
+      setCustomPekerjaan('');
+    }
+    if (name === 'pekerjaan_istri' && value !== 'Lainnya') {
+      setCustomPekerjaanIstri('');
+    }
     // Clear error for this field when user types
     if (errors[name]) {
       setErrors(prev => ({
@@ -44,10 +57,17 @@ export default function RecipientRegisterPage() {
     setSuccessMessage("");
     setLoading(true);
 
-    console.log('Submitting registration with data:', formData);
+    // Prepare data with custom values if "Lainnya" is selected
+    const submitData = {
+      ...formData,
+      pekerjaan: formData.pekerjaan === 'Lainnya' ? customPekerjaan : formData.pekerjaan,
+      pekerjaan_istri: formData.pekerjaan_istri === 'Lainnya' ? customPekerjaanIstri : formData.pekerjaan_istri,
+    };
+
+    console.log('Submitting registration with data:', submitData);
 
     try {
-      const result = await register(formData, 'recipient');
+      const result = await register(submitData, 'recipient');
       console.log('Registration successful:', result);
       
       // Show success message
@@ -60,6 +80,10 @@ export default function RecipientRegisterPage() {
         nama_kepala: "",
         alamat: "",
         nomor_telepon: "",
+        pekerjaan: "",
+        penghasilan: "",
+        pekerjaan_istri: "",
+        status_anak: "",
         password: "",
         password_confirmation: "",
         jumlah_tanggungan: 0,
@@ -305,6 +329,185 @@ export default function RecipientRegisterPage() {
                 </div>
                 {errors.jumlah_tanggungan && (
                   <p className="mt-1 text-sm text-red-600">{errors.jumlah_tanggungan[0]}</p>
+                )}
+              </div>
+
+              {/* Pekerjaan */}
+              <div>
+                <label htmlFor="pekerjaan" className="block text-sm font-semibold text-gray-700 mb-2">
+                  Pekerjaan
+                </label>
+                <div className="relative">
+                  <svg
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  <select
+                    id="pekerjaan"
+                    name="pekerjaan"
+                    className={`w-full pl-11 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all text-sm appearance-none bg-white ${
+                      errors.pekerjaan ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                    }`}
+                    value={formData.pekerjaan}
+                    onChange={handleChange}
+                  >
+                    <option value="">Pilih pekerjaan</option>
+                    <option value="Tidak bekerja">Tidak bekerja</option>
+                    <option value="Petani">Petani</option>
+                    <option value="Buruh Tani">Buruh Tani</option>
+                    <option value="Nelayan">Nelayan</option>
+                    <option value="Pedagang">Pedagang</option>
+                    <option value="Wiraswasta">Wiraswasta</option>
+                    <option value="Buruh Harian">Buruh Harian</option>
+                    <option value="Karyawan Swasta">Karyawan Swasta</option>
+                    <option value="PNS">PNS</option>
+                    <option value="Lainnya">Lainnya</option>
+                  </select>
+                </div>
+                {formData.pekerjaan === 'Lainnya' && (
+                  <div className="mt-2">
+                    <input
+                      type="text"
+                      placeholder="Masukkan pekerjaan Anda"
+                      className="w-full pl-4 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all text-sm"
+                      value={customPekerjaan}
+                      onChange={(e) => setCustomPekerjaan(e.target.value)}
+                    />
+                  </div>
+                )}
+                {errors.pekerjaan && (
+                  <p className="mt-1 text-sm text-red-600">{errors.pekerjaan[0]}</p>
+                )}
+              </div>
+
+              {/* Penghasilan */}
+              <div>
+                <label htmlFor="penghasilan" className="block text-sm font-semibold text-gray-700 mb-2">
+                  Penghasilan
+                </label>
+                <div className="relative">
+                  <svg
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <select
+                    id="penghasilan"
+                    name="penghasilan"
+                    className={`w-full pl-11 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all text-sm appearance-none bg-white ${
+                      errors.penghasilan ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                    }`}
+                    value={formData.penghasilan}
+                    onChange={handleChange}
+                  >
+                    <option value="">Pilih penghasilan</option>
+                    <option value="< Rp 500.000">&lt; Rp 500.000</option>
+                    <option value="Rp 500.000 - Rp 1.000.000">Rp 500.000 - Rp 1.000.000</option>
+                    <option value="Rp 1.000.000 - Rp 2.000.000">Rp 1.000.000 - Rp 2.000.000</option>
+                    <option value="Rp 2.000.000 - Rp 3.000.000">Rp 2.000.000 - Rp 3.000.000</option>
+                    <option value="> Rp 3.000.000">&gt; Rp 3.000.000</option>
+                  </select>
+                </div>
+                {errors.penghasilan && (
+                  <p className="mt-1 text-sm text-red-600">{errors.penghasilan[0]}</p>
+                )}
+              </div>
+
+              {/* Status Pekerjaan Istri */}
+              <div>
+                <label htmlFor="pekerjaan_istri" className="block text-sm font-semibold text-gray-700 mb-2">
+                  Status Pekerjaan Istri
+                </label>
+                <div className="relative">
+                  <svg
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  <select
+                    id="pekerjaan_istri"
+                    name="pekerjaan_istri"
+                    className={`w-full pl-11 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all text-sm appearance-none bg-white ${
+                      errors.pekerjaan_istri ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                    }`}
+                    value={formData.pekerjaan_istri}
+                    onChange={handleChange}
+                  >
+                    <option value="">Pilih status pekerjaan istri</option>
+                    <option value="Tidak bekerja">Tidak bekerja</option>
+                    <option value="Ibu Rumah Tangga (IRT)">Ibu Rumah Tangga (IRT)</option>
+                    <option value="Petani">Petani</option>
+                    <option value="Pedagang">Pedagang</option>
+                    <option value="Wiraswasta">Wiraswasta</option>
+                    <option value="Buruh Harian">Buruh Harian</option>
+                    <option value="Karyawan Swasta">Karyawan Swasta</option>
+                    <option value="PNS">PNS</option>
+                    <option value="Lainnya">Lainnya</option>
+                  </select>
+                </div>
+                {formData.pekerjaan_istri === 'Lainnya' && (
+                  <div className="mt-2">
+                    <input
+                      type="text"
+                      placeholder="Masukkan pekerjaan istri"
+                      className="w-full pl-4 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all text-sm"
+                      value={customPekerjaanIstri}
+                      onChange={(e) => setCustomPekerjaanIstri(e.target.value)}
+                    />
+                  </div>
+                )}
+                {errors.pekerjaan_istri && (
+                  <p className="mt-1 text-sm text-red-600">{errors.pekerjaan_istri[0]}</p>
+                )}
+              </div>
+
+              {/* Status Anak */}
+              <div>
+                <label htmlFor="status_anak" className="block text-sm font-semibold text-gray-700 mb-2">
+                  Status Anak
+                </label>
+                <div className="relative">
+                  <svg
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                  </svg>
+                  <select
+                    id="status_anak"
+                    name="status_anak"
+                    className={`w-full pl-11 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all text-sm appearance-none bg-white ${
+                      errors.status_anak ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                    }`}
+                    value={formData.status_anak}
+                    onChange={handleChange}
+                  >
+                    <option value="">Pilih status anak</option>
+                    <option value="Tidak ada anak">Tidak ada anak</option>
+                    <option value="Belum sekolah">Belum sekolah</option>
+                    <option value="TK/PAUD">TK/PAUD</option>
+                    <option value="SD">SD</option>
+                    <option value="SMP">SMP</option>
+                    <option value="SMA/SMK">SMA/SMK</option>
+                    <option value="Kuliah">Kuliah</option>
+                    <option value="Sudah bekerja">Sudah bekerja</option>
+                    <option value="Putus sekolah">Putus sekolah</option>
+                  </select>
+                </div>
+                {errors.status_anak && (
+                  <p className="mt-1 text-sm text-red-600">{errors.status_anak[0]}</p>
                 )}
               </div>
 

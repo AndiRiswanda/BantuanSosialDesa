@@ -24,6 +24,7 @@ import RecipientApplication from "./components/pages/recipient/RecipientApplicat
 import RecipientApplicationStatus from "./components/pages/recipient/RecipientApplicationStatus";
 import RecipientProgramDetail from "./components/pages/recipient/RecipientProgramDetail";
 import RecipientProfile from "./components/pages/recipient/RecipientProfile";
+import RecipientProfileEdit from "./components/pages/recipient/RecipientProfileEdit";
 import AdminDashboard from "./components/pages/admin/AdminDashboard";
 import AdminPrograms from "./components/pages/admin/AdminPrograms";
 import AdminDonations from "./components/pages/admin/AdminDonations";
@@ -77,6 +78,7 @@ function App() {
             {/* Protected Recipient Routes */}
             <Route path="/penerima" element={<ProtectedRoute allowedTypes={['recipient']}><RecipientDashboard /></ProtectedRoute>} />
             <Route path="/penerima/profil" element={<ProtectedRoute allowedTypes={['recipient']}><RecipientProfile /></ProtectedRoute>} />
+            <Route path="/penerima/profil/edit" element={<ProtectedRoute allowedTypes={['recipient']}><RecipientProfileEdit /></ProtectedRoute>} />
             <Route path="/penerima/program" element={<ProtectedRoute allowedTypes={['recipient']}><RecipientPrograms /></ProtectedRoute>} />
             <Route path="/penerima/program/:id" element={<ProtectedRoute allowedTypes={['recipient']}><RecipientProgramDetail /></ProtectedRoute>} />
             <Route path="/penerima/pengajuan" element={<ProtectedRoute allowedTypes={['recipient']}><RecipientApplication /></ProtectedRoute>} />

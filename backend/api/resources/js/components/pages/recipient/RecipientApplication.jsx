@@ -1,7 +1,8 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import NavbarRecipient from "../../layout/NavbarRecipient";
 import { AlertTriangle, FileText, Upload, X, BadgeCheck } from "lucide-react";
+import { recipientAPI } from "../../../utils/api";
 
 function Field({ label, hint, children }) {
   return (
@@ -87,11 +88,45 @@ export default function RecipientApplication() {
   const [houseFile, setHouseFile] = useState(null);
   const [kkNumber, setKkNumber] = useState("");
   const [kkError, setKkError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [userData, setUserData] = useState(null);
+
+  useEffect(() => {
+    fetchUserData();
+  }, []);
+
+  const fetchUserData = async () => {
+    try {
+      setLoading(true);
+      const response = await recipientAPI.getProfile();
+      if (response.success) {
+        setUserData(response.profile);
+      }
+    } catch (err) {
+      console.error('Error fetching user data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const openUpload = (target) => {
     setUploadTarget(target);
     setShowUpload(true);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-[#E6EFFA]">
+        <NavbarRecipient />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
+            <p className="mt-4 text-slate-600">Memuat data...</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-[#E6EFFA]">
@@ -125,13 +160,13 @@ export default function RecipientApplication() {
           {/* Form card */}
           <form className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6 space-y-5">
             <Field label="Nama Lengkap Kepala Keluarga" hint="Ket: Masukkan nama lengkap kepala keluarga sesuai KTP dan Kartu Keluarga (KK)">
-              <Input placeholder="contoh: 'Ahmad Yani'" />
+              <Input placeholder={userData?.nama_kepala ? `contoh: ${userData.nama_kepala}` : "contoh: 'Ahmad Dahlan'"} />
             </Field>
 
             <Field label="No. Kartu Keluarga (KK)" hint="Ket: Masukkan 16 digit nomor Kartu Keluarga (KK)">
               <>
                 <Input
-                  placeholder="contoh: '73160612214100001'"
+                  placeholder={userData?.no_kk ? `contoh: ${userData.no_kk}` : "contoh: '3601012501250001'"}
                   value={kkNumber}
                   onChange={(e) => { setKkNumber(e.target.value); setKkError(''); }}
                 />
@@ -140,23 +175,23 @@ export default function RecipientApplication() {
             </Field>
 
             <Field label="Alamat" hint="Ket: Masukkan alamat lengkap (jalan, RT/RW)">
-              <Input placeholder="contoh: 'Jl. Kenanga No. 5, RT 03/04'" />
+              <Input placeholder={userData?.alamat ? `contoh: ${userData.alamat}` : "contoh: 'Jl. Merdeka No. 10, RT 01/RW 02'"} />
             </Field>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Field label="No. Telepon/WhatsApp" hint="Ket: Masukkan nomor yang aktif untuk dihubungi">
-                <Input placeholder="contoh: '085********'" />
+                <Input placeholder={userData?.nomor_telepon ? `contoh: ${userData.nomor_telepon}` : "contoh: '081234567890'"} />
               </Field>
               <Field label="Pekerjaan" hint="Ket: Masukkan pekerjaan kepala keluarga">
-                <Input placeholder="contoh: 'Petani'" />
+                <Input placeholder={userData?.pekerjaan ? `contoh: ${userData.pekerjaan}` : "contoh: 'Petani'"} />
               </Field>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Field label="Penghasilan" hint="Ket: Pilih sesuai rentang penghasilan per bulan">
-                <Select defaultValue="">
+                <Select defaultValue={userData?.penghasilan || ""}>
                   <option value="" disabled>
-                    &lt; Rp 500.000,-
+                    -- Pilih Penghasilan --
                   </option>
                   <option>&lt; Rp 500.000,-</option>
                   <option>Rp 500.000,- - Rp 1.000.000,-</option>
@@ -166,13 +201,13 @@ export default function RecipientApplication() {
                 </Select>
               </Field>
               <Field label="Jumlah Tanggungan" hint="Ket: Masukkan jumlah tanggungan kepala keluarga">
-                <Input placeholder="contoh: '1'" />
+                <Input placeholder={userData?.jumlah_tanggungan ? `contoh: ${userData.jumlah_tanggungan}` : "contoh: '3'"} />
               </Field>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Field label="Status Pekerjaan Istri" hint="Ket: Pilih sesuai status pekerjaan istri">
-                <Select defaultValue="">
+                <Select defaultValue={userData?.pekerjaan_istri || ""}>
                   <option value="" disabled>
                     -- Pilih Status Pekerjaan Istri --
                   </option>
@@ -183,7 +218,7 @@ export default function RecipientApplication() {
                 </Select>
               </Field>
               <Field label="Status Anak" hint="Ket: Pilih sesuai status anak Anda">
-                <Select defaultValue="">
+                <Select defaultValue={userData?.status_anak || ""}>
                   <option value="" disabled>
                     -- Pilih Status Anak --
                   </option>
@@ -203,7 +238,9 @@ export default function RecipientApplication() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="rounded-lg border border-slate-200 p-3">
                   <p className="text-sm font-medium text-slate-800 mb-1">Kartu Keluarga (KK)</p>
-                  <p className="text-[11px] text-slate-500 mb-3">contoh nama file: KK_AhmadYani_NoKK.png</p>
+                  <p className="text-[11px] text-slate-500 mb-3">
+                    contoh nama file: KK_{userData?.nama_kepala?.replace(/\s+/g, '') || 'NamaAnda'}_{userData?.no_kk || 'NoKK'}.png
+                  </p>
                   <button
                     type="button"
                     onClick={() => openUpload("KK")}
@@ -215,7 +252,9 @@ export default function RecipientApplication() {
                 </div>
                 <div className="rounded-lg border border-slate-200 p-3">
                   <p className="text-sm font-medium text-slate-800 mb-1">Foto Rumah</p>
-                  <p className="text-[11px] text-slate-500 mb-3">contoh nama file: FotoRumah_AhmadYani_NoKK.pdf</p>
+                  <p className="text-[11px] text-slate-500 mb-3">
+                    contoh nama file: FotoRumah_{userData?.nama_kepala?.replace(/\s+/g, '') || 'NamaAnda'}_{userData?.no_kk || 'NoKK'}.pdf
+                  </p>
                   <button
                     type="button"
                     onClick={() => openUpload("RUMAH")}

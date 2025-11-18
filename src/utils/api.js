@@ -149,14 +149,40 @@ export default api;
 
 // Auth APIs
 export const authAPI = {
-  login: (credentials) => 
-    apiFetch('/api/login', {
+  // Generic login - determines endpoint based on role
+  login: (credentials) => {
+    const role = credentials.role;
+    let endpoint = '/api/login';
+    
+    if (role === 'penerima' || role === 'recipient') {
+      endpoint = '/api/login/recipient';
+    } else if (role === 'donatur' || role === 'donor') {
+      endpoint = '/api/login/donatur';
+    } else if (role === 'admin') {
+      endpoint = '/api/admin/login';
+    }
+    
+    return apiFetch(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(credentials),
+    });
+  },
+  
+  // Specific login methods
+  loginRecipient: (credentials) =>
+    apiFetch('/api/login/recipient', {
+      method: 'POST',
+      body: JSON.stringify(credentials),
+    }),
+  
+  loginDonor: (credentials) =>
+    apiFetch('/api/login/donatur', {
       method: 'POST',
       body: JSON.stringify(credentials),
     }),
   
   registerDonor: (data) =>
-    apiFetch('/api/register/donor', {
+    apiFetch('/api/register/donatur', {
       method: 'POST',
       body: JSON.stringify(data),
     }),

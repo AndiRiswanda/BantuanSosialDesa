@@ -26,7 +26,7 @@ class AuthController extends Controller
 
         if (!$donatur) {
             throw ValidationException::withMessages([
-                'email' => ['Email tidak terdaftar sebagai donatur.'],
+                'email' => ['Email tidak terdaftar.'],
             ]);
         }
 
@@ -48,7 +48,7 @@ class AuthController extends Controller
     public function loginRecipient(Request $request)
     {
         $request->validate([
-            'no_kk' => 'required',
+            'no_kk' => 'required|string',
             'password' => 'required',
         ], [
             'no_kk.required' => 'Nomor KK harus diisi.',
@@ -59,13 +59,13 @@ class AuthController extends Controller
 
         if (!$penerima) {
             throw ValidationException::withMessages([
-                'no_kk' => ['Nomor KK tidak terdaftar sebagai penerima bantuan.'],
+                'no_kk' => ['Nomor KK tidak terdaftar.'],
             ]);
         }
 
         if (!Hash::check($request->password, $penerima->password)) {
             throw ValidationException::withMessages([
-                'password' => ['Username/Password yang Anda masukkan salah.'],
+                'password' => ['Nomor KK/Password yang Anda masukkan salah.'],
             ]);
         }
 
@@ -81,34 +81,29 @@ class AuthController extends Controller
     public function registerDonor(Request $request)
     {
         $request->validate([
-            'nama_organisasi' => 'required|string|max:100',
-            'email' => 'required|string|email|max:100|unique:donatur',
+            'email' => 'required|email|unique:donatur',
             'password' => 'required|string|min:8|confirmed',
+            'nama_organisasi' => 'nullable|string|max:100',
+            'nama_lengkap' => 'nullable|string|max:100',
             'nomor_telepon' => 'nullable|string|max:15',
             'alamat' => 'nullable|string',
-            'jenis_instansi' => 'required|in:perusahaan,yayasan,perorangan',
         ], [
-            'nama_organisasi.required' => 'Nama organisasi harus diisi.',
-            'nama_organisasi.max' => 'Nama organisasi maksimal 100 karakter.',
             'email.required' => 'Email harus diisi.',
             'email.email' => 'Format email tidak valid.',
-            'email.unique' => 'Email sudah terdaftar. Silakan gunakan email lain.',
+            'email.unique' => 'Email sudah terdaftar.',
             'password.required' => 'Password harus diisi.',
             'password.min' => 'Password minimal 8 karakter.',
             'password.confirmed' => 'Konfirmasi password tidak cocok.',
-            'nomor_telepon.max' => 'Nomor telepon maksimal 15 karakter.',
-            'jenis_instansi.required' => 'Jenis instansi harus dipilih.',
-            'jenis_instansi.in' => 'Jenis instansi harus salah satu dari: perusahaan, yayasan, perorangan.',
         ]);
 
         $donatur = Donatur::create([
-            'nama_organisasi' => $request->nama_organisasi,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'nama_organisasi' => $request->nama_organisasi,
+            'nama_lengkap' => $request->nama_lengkap,
             'nomor_telepon' => $request->nomor_telepon,
             'alamat' => $request->alamat,
-            'jenis_instansi' => $request->jenis_instansi,
-            'status' => 'aktif',
+            'status_verifikasi' => 'pending',
         ]);
 
         $token = $donatur->createToken('donor-token')->plainTextToken;
@@ -129,10 +124,10 @@ class AuthController extends Controller
             'nomor_telepon' => 'nullable|string|max:15',
             'alamat' => 'nullable|string',
             'pekerjaan' => 'nullable|string|max:100',
-            'pekerjaan_istri' => 'nullable|in:ibu rumah tangga,bekerja & berpenghasilan,belum menikah,kepala keluarga',
-            'status_anak' => 'nullable|in:belum punya,bayi,sekolah,bekerja,tidak bekerja',
+            'pekerjaan_istri' => 'nullable|string|max:100',
+            'status_anak' => 'nullable|string|max:100',
             'jumlah_tanggungan' => 'required|integer|min:0',
-            'penghasilan' => 'nullable|in:< 500.000,500.000 - 1.000.000,1.000.001 - 2.000.000,2.000.001 - 3.000.000,> 3.000.000',
+            'penghasilan' => 'nullable|string|max:100',
         ], [
             'no_kk.required' => 'Nomor KK harus diisi.',
             'no_kk.unique' => 'Nomor KK sudah terdaftar. Silakan hubungi admin jika ada masalah.',
@@ -211,7 +206,8 @@ class AuthController extends Controller
         $request->user()->currentAccessToken()->delete();
 
         return response()->json([
-            'message' => 'Logged out successfully',
+            'success' => true,
+            'message' => 'Successfully logged out',
         ]);
     }
 }

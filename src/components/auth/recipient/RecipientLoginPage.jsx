@@ -1,8 +1,96 @@
+import { useState } from "react";
 import recipientIcon from "../../../assets/iconPenerima 1.png";
 import { useNavigate } from "react-router-dom";
+import { authAPI, setAuthToken, setUser } from "../../../utils/api";
 
 export default function RecipientLoginPage() {
   const navigate = useNavigate();
+  const [noKK, setNoKK] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [generalError, setGeneralError] = useState("");
+
+  const handleChange = (field, value) => {
+    if (field === 'noKK') setNoKK(value);
+    if (field === 'password') setPassword(value);
+    
+    // Clear error when user types
+    if (errors[field === 'noKK' ? 'no_kk' : field]) {
+      setErrors((prev) => ({
+        ...prev,
+        [field === 'noKK' ? 'no_kk' : field]: "",
+      }));
+    }
+    if (generalError) {
+      setGeneralError("");
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrors({});
+    setGeneralError("");
+
+    try {
+      const response = await authAPI.login({
+        no_kk: noKK,
+        password: password,
+        role: 'penerima'
+      });
+
+      // Save token and user data
+      setAuthToken(response.token);
+      setUser(response.user);
+      
+      // Redirect to dashboard
+      navigate('/penerima');
+    } catch (err) {
+      console.error('Login error:', err);
+      
+      if (err.response) {
+        const { status, data } = err.response;
+        
+        // Handle field-specific errors from Laravel validation
+        if (data && data.errors && typeof data.errors === 'object') {
+          const errorKeys = Object.keys(data.errors);
+          
+          if (errorKeys.length > 0) {
+            // Transform errors: ensure each error is a string
+            const transformedErrors = {};
+            errorKeys.forEach(key => {
+              const errorValue = data.errors[key];
+              transformedErrors[key] = Array.isArray(errorValue) ? errorValue[0] : errorValue;
+            });
+            setErrors(transformedErrors);
+            setLoading(false);
+            return;
+          }
+        }
+        
+        // If no field errors, set general error
+        if (status === 422) {
+          setGeneralError(data.message || "Terjadi kesalahan validasi. Silakan periksa input Anda.");
+        } else if (status === 401) {
+          setGeneralError("No KK atau password salah. Silakan coba lagi.");
+        } else if (status === 500) {
+          setGeneralError("Terjadi kesalahan pada server. Silakan coba lagi nanti.");
+        } else if (data && data.message) {
+          setGeneralError(data.message);
+        } else {
+          setGeneralError("Terjadi kesalahan saat login. Silakan coba lagi.");
+        }
+      } else if (err.request) {
+        setGeneralError("Tidak dapat terhubung ke server. Periksa koneksi internet Anda.");
+      } else {
+        setGeneralError(err.message || "Terjadi kesalahan. Silakan coba lagi.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <section className="w-full min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-5xl grid lg:grid-cols-2 gap-0 bg-white rounded-3xl shadow-2xl overflow-hidden">
@@ -40,7 +128,17 @@ export default function RecipientLoginPage() {
               Login Penerima Bantuan
             </h1>
 
-            <form className="space-y-5" onSubmit={(e) => { e.preventDefault(); navigate('/penerima'); }}>
+            {/* General Error Message - ONLY show if NO field errors exist */}
+            {generalError && Object.keys(errors).length === 0 && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm flex items-start gap-2">
+                <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>{generalError}</span>
+              </div>
+            )}
+
+            <form className="space-y-5" onSubmit={handleSubmit}>
               {/* No. KK */}
               <div>
                 <label htmlFor="noKK" className="block text-sm font-semibold text-gray-700 mb-2">
@@ -59,10 +157,23 @@ export default function RecipientLoginPage() {
                     id="noKK"
                     type="text"
                     placeholder="Masukkan No. KK Anda"
-                    className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all text-sm"
+                    className={`w-full pl-11 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all text-sm ${
+                      errors.no_kk ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                    }`}
+                    value={noKK}
+                    onChange={(e) => handleChange('noKK', e.target.value)}
                     required
+                    disabled={loading}
                   />
                 </div>
+                {errors.no_kk && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    {Array.isArray(errors.no_kk) ? errors.no_kk[0] : errors.no_kk}
+                  </p>
+                )}
               </div>
 
               {/* Kata Sandi */}
@@ -83,18 +194,32 @@ export default function RecipientLoginPage() {
                     id="password"
                     type="password"
                     placeholder="Masukkan kata sandi Anda"
-                    className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all text-sm"
+                    className={`w-full pl-11 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all text-sm ${
+                      errors.password ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                    }`}
+                    value={password}
+                    onChange={(e) => handleChange('password', e.target.value)}
                     required
+                    disabled={loading}
                   />
                 </div>
+                {errors.password && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    {Array.isArray(errors.password) ? errors.password[0] : errors.password}
+                  </p>
+                )}
               </div>
 
               {/* Submit Button */}
               <button
                 type="submit"
-                className="w-full bg-green-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-green-700 hover:shadow-lg hover:scale-105 transition-all duration-300 active:scale-95 mt-6"
+                className="w-full bg-green-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-green-700 hover:shadow-lg hover:scale-105 transition-all duration-300 active:scale-95 mt-6 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                disabled={loading}
               >
-                Masuk
+                {loading ? 'Memproses...' : 'Masuk'}
               </button>
 
               {/* Register Link */}
