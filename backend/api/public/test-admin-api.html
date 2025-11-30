@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Admin API</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #0B2B5E;
+            margin-bottom: 10px;
+        }
+        .info {
+            background: #e3f2fd;
+            border-left: 4px solid #2196F3;
+            padding: 12px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 6px;
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button.secondary {
+            background: #2196F3;
+        }
+        button.secondary:hover {
+            background: #0b7dda;
+        }
+        #response {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+        }
+        .stat-card h3 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: #666;
+        }
+        .stat-card .value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #0B2B5E;
+        }
+        .error {
+            background: #ffebee;
+            border-left: 4px solid #f44336;
+            padding: 12px;
+            margin: 20px 0;
+            border-radius: 4px;
+            color: #c62828;
+        }
+        .success {
+            background: #e8f5e9;
+            border-left: 4px solid #4CAF50;
+            padding: 12px;
+            margin: 20px 0;
+            border-radius: 4px;
+            color: #2e7d32;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test Admin API Dashboard</h1>
+        <div class="info">
+            <strong>Base URL:</strong> <span id="baseUrl">http://localhost:8000</span><br>
+            <strong>Endpoint:</strong> /api/admin/dashboard<br>
+            <strong>Method:</strong> GET<br>
+            <strong>Auth:</strong> Bearer Token (Required)
+        </div>
+
+        <div class="section">
+            <h2>1. Login Dulu</h2>
+            <p>Login sebagai admin untuk mendapatkan token:</p>
+            <button onclick="loginAdmin()">🔐 Login as Admin</button>
+            <div id="loginResult"></div>
+        </div>
+
+        <div class="section">
+            <h2>2. Test Dashboard API</h2>
+            <button onclick="testDashboard()">📊 Get Dashboard Data</button>
+            <button class="secondary" onclick="testPrograms()">📋 Get Programs</button>
+            <button class="secondary" onclick="testDonors()">💰 Get Donors</button>
+            <button class="secondary" onclick="testRecipients()">👥 Get Recipients</button>
+        </div>
+
+        <div class="section">
+            <h2>Response:</h2>
+            <div id="status"></div>
+            <div id="response">
+                <pre>Belum ada request. Klik tombol di atas untuk test API.</pre>
+            </div>
+        </div>
+
+        <div id="statsSection" style="display: none;">
+            <div class="section">
+                <h2>📈 Dashboard Statistics</h2>
+                <div class="stats" id="statsCards"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let authToken = localStorage.getItem('admin_token') || '';
+        const baseUrl = 'http://localhost:8000';
+
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : 'info';
+            statusDiv.innerHTML = `<div class="${className}">${message}</div>`;
+        }
+
+        function showLoading() {
+            updateStatus('<span class="loading"></span> Loading...', 'info');
+        }
+
+        async function loginAdmin() {
+            showLoading();
+            try {
+                const response = await fetch(`${baseUrl}/api/admin/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: 'admin',
+                        password: 'password'
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.token) {
+                    authToken = data.token;
+                    localStorage.setItem('admin_token', authToken);
+                    document.getElementById('loginResult').innerHTML = 
+                        '<div class="success">✅ Login berhasil! Token: ' + authToken.substring(0, 20) + '...</div>';
+                    updateStatus('Login berhasil! Sekarang bisa test dashboard.', 'success');
+                } else {
+                    document.getElementById('loginResult').innerHTML = 
+                        '<div class="error">❌ Login gagal: ' + (data.message || 'Unknown error') + '</div>';
+                    updateStatus('Login gagal!', 'error');
+                }
+                
+                document.getElementById('response').innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            } catch (error) {
+                document.getElementById('loginResult').innerHTML = 
+                    '<div class="error">❌ Error: ' + error.message + '</div>';
+                updateStatus('Error saat login: ' + error.message, 'error');
+            }
+        }
+
+        async function testDashboard() {
+            if (!authToken) {
+                updateStatus('⚠️ Silakan login terlebih dahulu!', 'error');
+                return;
+            }
+
+            showLoading();
+            try {
+                const response = await fetch(`${baseUrl}/api/admin/dashboard`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    updateStatus('✅ Dashboard data loaded successfully!', 'success');
+                    document.getElementById('response').innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                    
+                    // Display stats
+                    if (data.stats) {
+                        displayStats(data.stats);
+                    }
+                } else {
+                    updateStatus('❌ Error: ' + (data.message || 'Failed to load data'), 'error');
+                    document.getElementById('response').innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                }
+            } catch (error) {
+                updateStatus('❌ Network error: ' + error.message, 'error');
+                document.getElementById('response').innerHTML = '<pre>Error: ' + error.message + '</pre>';
+            }
+        }
+
+        function displayStats(stats) {
+            const statsSection = document.getElementById('statsSection');
+            const statsCards = document.getElementById('statsCards');
+            
+            statsCards.innerHTML = `
+                <div class="stat-card">
+                    <h3>Total Donors</h3>
+                    <div class="value">${stats.total_donors || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Recipients</h3>
+                    <div class="value">${stats.total_recipients || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Programs</h3>
+                    <div class="value">${stats.total_programs || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Active Programs</h3>
+                    <div class="value">${stats.active_programs || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Bantuan Uang</h3>
+                    <div class="value">Rp ${(stats.total_bantuan_uang || 0).toLocaleString('id-ID')}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Bantuan Barang</h3>
+                    <div class="value">${stats.total_bantuan_barang || 0} paket</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Pending Donors</h3>
+                    <div class="value">${stats.pending_donor_verifications || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Pending Recipients</h3>
+                    <div class="value">${stats.pending_recipient_verifications || 0}</div>
+                </div>
+            `;
+            
+            statsSection.style.display = 'block';
+        }
+
+        async function testPrograms() {
+            if (!authToken) {
+                updateStatus('⚠️ Silakan login terlebih dahulu!', 'error');
+                return;
+            }
+
+            showLoading();
+            try {
+                const response = await fetch(`${baseUrl}/api/admin/programs`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Accept': 'application/json',
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    updateStatus('✅ Programs loaded successfully!', 'success');
+                } else {
+                    updateStatus('❌ Error loading programs', 'error');
+                }
+                
+                document.getElementById('response').innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            } catch (error) {
+                updateStatus('❌ Error: ' + error.message, 'error');
+            }
+        }
+
+        async function testDonors() {
+            if (!authToken) {
+                updateStatus('⚠️ Silakan login terlebih dahulu!', 'error');
+                return;
+            }
+
+            showLoading();
+            try {
+                const response = await fetch(`${baseUrl}/api/admin/donatur`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Accept': 'application/json',
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    updateStatus('✅ Donors loaded successfully!', 'success');
+                } else {
+                    updateStatus('❌ Error loading donors', 'error');
+                }
+                
+                document.getElementById('response').innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            } catch (error) {
+                updateStatus('❌ Error: ' + error.message, 'error');
+            }
+        }
+
+        async function testRecipients() {
+            if (!authToken) {
+                updateStatus('⚠️ Silakan login terlebih dahulu!', 'error');
+                return;
+            }
+
+            showLoading();
+            try {
+                const response = await fetch(`${baseUrl}/api/admin/recipients`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Accept': 'application/json',
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    updateStatus('✅ Recipients loaded successfully!', 'success');
+                } else {
+                    updateStatus('❌ Error loading recipients', 'error');
+                }
+                
+                document.getElementById('response').innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            } catch (error) {
+                updateStatus('❌ Error: ' + error.message, 'error');
+            }
+        }
+
+        // Check if already logged in
+        if (authToken) {
+            document.getElementById('loginResult').innerHTML = 
+                '<div class="success">✅ Token sudah tersimpan! Token: ' + authToken.substring(0, 20) + '...</div>';
+        }
+    </script>
+</body>
+</html>
