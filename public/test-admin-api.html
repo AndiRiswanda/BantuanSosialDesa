@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Admin API - Pending Programs</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-primary { background: #10b981; color: white; }
+        .btn-secondary { background: #6b7280; color: white; }
+        .btn-danger { background: #ef4444; color: white; }
+        button:hover { opacity: 0.8; }
+        .status { 
+            padding: 10px; 
+            margin: 10px 0; 
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .status.loading { background: #fef3c7; color: #92400e; }
+        .status.success { background: #d1fae5; color: #065f46; }
+        .status.error { background: #fee2e2; color: #991b1b; }
+        pre {
+            background: #1f2937;
+            color: #f3f4f6;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            max-height: 500px;
+        }
+        .input-group {
+            margin: 15px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .card {
+            border: 1px solid #e5e7eb;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            background: #f9fafb;
+        }
+        .card h3 { margin-top: 0; color: #1f2937; }
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .badge-pending { background: #fef3c7; color: #92400e; }
+        .badge-aktif { background: #d1fae5; color: #065f46; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test Admin API - Pending Programs</h1>
+        <p>Tool untuk test API admin kelola donasi</p>
+
+        <div class="input-group">
+            <label>API Base URL:</label>
+            <input type="text" id="apiUrl" value="http://localhost:8000" />
+        </div>
+
+        <div class="input-group">
+            <label>Admin Token (dapatkan dari localStorage setelah login):</label>
+            <input type="password" id="token" placeholder="Paste token dari localStorage['auth_token']" />
+        </div>
+
+        <div style="margin: 20px 0;">
+            <button class="btn-primary" onclick="testLogin()">1. Login as Admin</button>
+            <button class="btn-primary" onclick="getPendingPrograms()">2. Get Pending Programs</button>
+            <button class="btn-primary" onclick="getActivePrograms()">3. Get Active Programs</button>
+            <button class="btn-secondary" onclick="checkDatabaseSeeding()">4. Check Database</button>
+            <button class="btn-danger" onclick="clearResults()">Clear</button>
+        </div>
+
+        <div id="status" class="status" style="display: none;"></div>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const showStatus = (message, type = 'loading') => {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+            statusEl.style.display = 'block';
+        };
+
+        const showResults = (title, data) => {
+            const resultsEl = document.getElementById('results');
+            resultsEl.innerHTML += `
+                <div class="card">
+                    <h3>${title}</h3>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                </div>
+            `;
+        };
+
+        const showError = (title, error) => {
+            const resultsEl = document.getElementById('results');
+            resultsEl.innerHTML += `
+                <div class="card" style="border-color: #ef4444;">
+                    <h3 style="color: #991b1b;">❌ ${title}</h3>
+                    <pre style="background: #fee2e2; color: #991b1b;">${error}</pre>
+                </div>
+            `;
+        };
+
+        const getApiUrl = () => document.getElementById('apiUrl').value;
+        const getToken = () => document.getElementById('token').value;
+
+        async function testLogin() {
+            showStatus('🔐 Attempting login...', 'loading');
+            
+            try {
+                const response = await fetch(`${getApiUrl()}/api/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'admin@desa.id',
+                        password: 'admin123'
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    document.getElementById('token').value = data.data.token;
+                    showStatus('✅ Login berhasil! Token disimpan.', 'success');
+                    showResults('Login Response', data);
+                } else {
+                    showStatus('❌ Login gagal', 'error');
+                    showError('Login Failed', JSON.stringify(data, null, 2));
+                }
+            } catch (error) {
+                showStatus('❌ Error saat login', 'error');
+                showError('Login Error', error.message);
+            }
+        }
+
+        async function getPendingPrograms() {
+            const token = getToken();
+            if (!token) {
+                alert('Silakan login dulu atau paste token!');
+                return;
+            }
+
+            showStatus('📋 Fetching pending programs...', 'loading');
+            
+            try {
+                const response = await fetch(`${getApiUrl()}/api/admin/programs/pending/list`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    const programs = data.data.data || data.data;
+                    showStatus(`✅ Found ${programs.length} pending programs`, 'success');
+                    
+                    // Show summary cards
+                    const resultsEl = document.getElementById('results');
+                    resultsEl.innerHTML += `
+                        <div class="card">
+                            <h3>📋 Pending Programs (${programs.length})</h3>
+                            ${programs.map(p => `
+                                <div style="border: 1px solid #e5e7eb; padding: 10px; margin: 5px 0; border-radius: 4px;">
+                                    <strong>${p.nama_program}</strong>
+                                    <span class="badge badge-pending">${p.status}</span><br>
+                                    <small>Donatur: ${p.donatur?.nama_organisasi || p.donatur?.nama_lengkap || '-'}</small><br>
+                                    <small>Jenis: ${p.jenis_bantuan} | Jumlah: ${p.jumlah_bantuan}</small>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                    
+                    showResults('Raw API Response', data);
+                } else {
+                    showStatus('❌ Failed to fetch pending programs', 'error');
+                    showError('API Error', JSON.stringify(data, null, 2));
+                }
+            } catch (error) {
+                showStatus('❌ Network error', 'error');
+                showError('Fetch Error', error.message);
+            }
+        }
+
+        async function getActivePrograms() {
+            const token = getToken();
+            if (!token) {
+                alert('Silakan login dulu atau paste token!');
+                return;
+            }
+
+            showStatus('📋 Fetching active programs...', 'loading');
+            
+            try {
+                const response = await fetch(`${getApiUrl()}/api/admin/programs?status=aktif`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    const programs = data.data.data || data.data;
+                    showStatus(`✅ Found ${programs.length} active programs`, 'success');
+                    
+                    // Show summary cards
+                    const resultsEl = document.getElementById('results');
+                    resultsEl.innerHTML += `
+                        <div class="card">
+                            <h3>📅 Active Programs (${programs.length})</h3>
+                            ${programs.map(p => `
+                                <div style="border: 1px solid #e5e7eb; padding: 10px; margin: 5px 0; border-radius: 4px;">
+                                    <strong>${p.nama_program}</strong>
+                                    <span class="badge badge-aktif">${p.status}</span><br>
+                                    <small>Donatur: ${p.donatur?.nama_organisasi || p.donatur?.nama_lengkap || '-'}</small><br>
+                                    <small>Progress: ${p.statistics?.persentase_selesai || 0}% (${p.statistics?.penerima_selesai || 0}/${p.statistics?.total_penerima || 0})</small>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                    
+                    showResults('Raw API Response', data);
+                } else {
+                    showStatus('❌ Failed to fetch active programs', 'error');
+                    showError('API Error', JSON.stringify(data, null, 2));
+                }
+            } catch (error) {
+                showStatus('❌ Network error', 'error');
+                showError('Fetch Error', error.message);
+            }
+        }
+
+        async function checkDatabaseSeeding() {
+            showStatus('🗄️ Checking database...', 'loading');
+            
+            const instructions = `
+Database Check Instructions:
+============================
+
+1. Buka terminal di backend/api folder
+2. Run command:
+   php artisan tinker
+
+3. Execute in tinker:
+   \\App\\Models\\ProgramBantuan::where('status', 'pending')->count()
+   
+4. Jika hasil = 0, run seeder:
+   exit
+   php artisan db:seed --class=DatabaseSeeder
+   
+5. Atau reset database:
+   php artisan migrate:fresh --seed
+
+Expected Result:
+- Minimal ada 3 program dengan status 'pending'
+- Program dibuat oleh donatur
+- Belum ada approval dari admin
+            `;
+            
+            showStatus('ℹ️ Check manual diperlukan', 'loading');
+            showResults('Database Check Instructions', { instructions });
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+            document.getElementById('status').style.display = 'none';
+        }
+
+        // Auto-load token from localStorage if available
+        window.onload = () => {
+            try {
+                const savedToken = localStorage.getItem('auth_token');
+                if (savedToken) {
+                    document.getElementById('token').value = savedToken;
+                    showStatus('ℹ️ Token loaded from localStorage', 'success');
+                }
+            } catch (e) {
+                console.log('No saved token found');
+            }
+        };
+    </script>
+</body>
+</html>

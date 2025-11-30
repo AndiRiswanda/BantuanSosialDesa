@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug - Check Login Status</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f7fa;
+        }
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-weight: bold;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        pre {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 13px;
+        }
+        button {
+            padding: 12px 24px;
+            margin: 5px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #2980b9;
+        }
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+        .btn-success:hover {
+            background: #229954;
+        }
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            border-bottom: 1px solid #ecf0f1;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #7f8c8d;
+        }
+        .info-value {
+            color: #2c3e50;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .badge-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🔐 Debug - Check Login Status</h1>
+        <p style="color: #7f8c8d;">Tool untuk debugging masalah authentication</p>
+        
+        <div style="margin: 20px 0;">
+            <button class="btn-primary" onclick="checkLoginStatus()">🔍 Check Status</button>
+            <button class="btn-success" onclick="testLogin()">🔐 Test Login</button>
+            <button class="btn-danger" onclick="clearAuth()">🗑️ Clear Auth</button>
+        </div>
+        
+        <div id="status"></div>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        function showStatus(message, type = 'success') {
+            const statusEl = document.getElementById('status');
+            statusEl.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        function checkLoginStatus() {
+            const resultsEl = document.getElementById('results');
+            
+            // Check localStorage
+            const authToken = localStorage.getItem('auth_token');
+            const user = localStorage.getItem('user');
+            const userObj = user ? JSON.parse(user) : null;
+            
+            let html = '<div class="card" style="background: #ecf0f1;">';
+            html += '<h3>📊 LocalStorage Status</h3>';
+            
+            // Auth Token
+            html += '<div class="info-row">';
+            html += '<span class="info-label">Auth Token:</span>';
+            if (authToken) {
+                html += `<span class="badge badge-success">✅ EXISTS</span>`;
+            } else {
+                html += `<span class="badge badge-error">❌ NOT FOUND</span>`;
+            }
+            html += '</div>';
+            
+            if (authToken) {
+                html += '<div class="info-row">';
+                html += '<span class="info-label">Token Preview:</span>';
+                html += `<span class="info-value" style="font-family: monospace; font-size: 12px;">${authToken.substring(0, 40)}...</span>`;
+                html += '</div>';
+            }
+            
+            // User Data
+            html += '<div class="info-row">';
+            html += '<span class="info-label">User Data:</span>';
+            if (user) {
+                html += `<span class="badge badge-success">✅ EXISTS</span>`;
+            } else {
+                html += `<span class="badge badge-error">❌ NOT FOUND</span>`;
+            }
+            html += '</div>';
+            
+            if (userObj) {
+                html += '<div class="info-row">';
+                html += '<span class="info-label">User Email:</span>';
+                html += `<span class="info-value">${userObj.email || 'N/A'}</span>`;
+                html += '</div>';
+                
+                html += '<div class="info-row">';
+                html += '<span class="info-label">User Role:</span>';
+                html += `<span class="info-value">${userObj.role || 'N/A'}</span>`;
+                html += '</div>';
+                
+                html += '<div class="info-row">';
+                html += '<span class="info-label">User Name:</span>';
+                html += `<span class="info-value">${userObj.nama_lengkap || userObj.name || 'N/A'}</span>`;
+                html += '</div>';
+            }
+            
+            html += '</div>';
+            
+            // Full Data
+            html += '<div class="card" style="background: #ecf0f1; margin-top: 10px;">';
+            html += '<h3>🔍 Raw Data</h3>';
+            html += '<pre>' + JSON.stringify({
+                auth_token: authToken ? authToken.substring(0, 40) + '...' : null,
+                user: userObj
+            }, null, 2) + '</pre>';
+            html += '</div>';
+            
+            resultsEl.innerHTML = html;
+            
+            if (!authToken) {
+                showStatus('❌ Auth token not found! Anda belum login.', 'error');
+            } else if (!user) {
+                showStatus('⚠️ Auth token exists but user data not found!', 'warning');
+            } else if (userObj.role !== 'admin') {
+                showStatus(`⚠️ Logged in as ${userObj.role}, not admin!`, 'warning');
+            } else {
+                showStatus('✅ Auth token and user data valid!', 'success');
+            }
+        }
+
+        async function testLogin() {
+            showStatus('🔐 Attempting login as admin...', 'warning');
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/admin/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'admin@desa.id',
+                        password: 'admin123'
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    // Save to localStorage
+                    localStorage.setItem('auth_token', data.data.token);
+                    localStorage.setItem('user', JSON.stringify(data.data.user));
+                    
+                    showStatus('✅ Login berhasil! Token dan user data tersimpan.', 'success');
+                    
+                    // Show results
+                    const resultsEl = document.getElementById('results');
+                    resultsEl.innerHTML = `
+                        <div class="card" style="background: #d4edda;">
+                            <h3>✅ Login Success</h3>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                            <button class="btn-primary" onclick="checkLoginStatus()">🔍 Check Status Now</button>
+                        </div>
+                    `;
+                } else {
+                    showStatus('❌ Login gagal: ' + (data.message || 'Unknown error'), 'error');
+                    document.getElementById('results').innerHTML = `
+                        <div class="card" style="background: #f8d7da;">
+                            <h3>❌ Login Failed</h3>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                showStatus('❌ Error: ' + error.message, 'error');
+                document.getElementById('results').innerHTML = `
+                    <div class="card" style="background: #f8d7da;">
+                        <h3>❌ Network Error</h3>
+                        <p>${error.message}</p>
+                        <p>Pastikan Laravel server running di http://localhost:8000</p>
+                    </div>
+                `;
+            }
+        }
+
+        function clearAuth() {
+            if (confirm('Clear auth token dan user data?')) {
+                localStorage.removeItem('auth_token');
+                localStorage.removeItem('user');
+                showStatus('✅ Auth data cleared!', 'success');
+                document.getElementById('results').innerHTML = '';
+                
+                setTimeout(() => {
+                    checkLoginStatus();
+                }, 500);
+            }
+        }
+
+        // Auto-check on load
+        window.onload = () => {
+            checkLoginStatus();
+        };
+    </script>
+</body>
+</html>
