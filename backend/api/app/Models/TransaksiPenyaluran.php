@@ -22,6 +22,7 @@ class TransaksiPenyaluran extends Model
         'metode_penyaluran',
         'bukti_penyaluran',
         'catatan',
+        'status_penyaluran',
     ];
 
     protected function casts(): array

@@ -13,7 +13,7 @@ return new class extends Migration {
             $table->text('deskripsi')->nullable();
             $table->enum('jenis_bantuan', ['uang', 'barang']);
             $table->enum('status', ['aktif', 'nonaktif'])->default('aktif');
-            $table->timestamp('created_at')->useCurrent();
+            $table->timestamps();
         });
     }
 

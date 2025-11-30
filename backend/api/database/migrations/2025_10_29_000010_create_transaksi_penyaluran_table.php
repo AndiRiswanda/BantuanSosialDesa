@@ -15,9 +15,10 @@ return new class extends Migration {
         $table->string('lokasi_penyaluran', 200);
         $table->decimal('jumlah_diterima', 12, 2);
         $table->enum('metode_penyaluran', ['transfer', 'barang']);
+        $table->enum('status_penyaluran', ['dijadwalkan', 'selesai', 'dibatalkan']);
         $table->string('bukti_penyaluran', 255)->nullable();
         $table->text('catatan')->nullable();
-        $table->timestamp('created_at')->useCurrent();
+        $table->timestamps();
 
         $table->foreign('id_penerima_program')->references('id_penerima_program')->on('penerima_program')
             ->onUpdate('cascade')->onDelete('restrict');

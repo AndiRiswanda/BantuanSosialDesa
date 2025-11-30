@@ -17,7 +17,10 @@ return new class extends Migration {
             $table->date('tanggal_selesai')->nullable();
             $table->enum('jenis_bantuan', ['uang', 'barang']);
             $table->decimal('jumlah_bantuan', 15, 2)->default(0);
-            $table->enum('status', ['aktif', 'selesai', 'ditunda'])->default('aktif');
+            $table->enum('status', ['pending', 'aktif', 'selesai', 'ditunda'])->default('pending');
+            $table->text('kriteria_penerima')->nullable();
+            $table->text('keterangan')->nullable();
+            $table->string('bukti_transfer')->nullable();
             $table->timestamps();
 
             $table->foreign('id_kategori')->references('id_kategori')->on('kategori_bantuan')

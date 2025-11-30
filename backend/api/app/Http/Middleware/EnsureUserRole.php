@@ -21,7 +21,7 @@ class EnsureUserRole
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
-        // Check user type based on guard
+        // Mengecek tipe user berdasarkan modelnya
         $userType = match (true) {
             $user instanceof \App\Models\UserAdmin => 'admin',
             $user instanceof \App\Models\Donatur => 'donatur',

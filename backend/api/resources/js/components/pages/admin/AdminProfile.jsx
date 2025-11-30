@@ -1,22 +1,80 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import NavbarAdmin from "../../layout/NavbarAdmin";
-import { ArrowLeft, LogOut, Pencil, UserCircle2, X, AlertTriangle } from "lucide-react";
+import { ArrowLeft, LogOut, Pencil, UserCircle2, X, AlertTriangle, Loader2 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
-
-const mockAdmin = {
-  name: "Ahmad Wijaya",
-  role: "Admin",
-  email: "wijaya.desaMurni@donasi.id",
-  phone: "081234567890",
-  username: "ahmad.wijaya",
-};
+import { adminAPI, removeAuthToken, removeUser } from "../../../utils/api";
 
 export default function AdminProfile() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [openLogout, setOpenLogout] = useState(false);
+  const [admin, setAdmin] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const initials = mockAdmin.name
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const loadProfile = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await adminAPI.getProfile();
+      
+      if (response.success && response.data) {
+        setAdmin(response.data);
+      }
+    } catch (err) {
+      console.error("Error loading profile:", err);
+      setError(err.message || "Gagal memuat data profil");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    removeAuthToken();
+    removeUser();
+    navigate("/login");
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <NavbarAdmin />
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+          <span className="ml-3 text-slate-600">Memuat data profil...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !admin) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <NavbarAdmin />
+        <div className="mx-auto max-w-5xl px-4 py-6">
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+            <div className="text-red-600">⚠️</div>
+            <div>
+              <div className="text-red-800 font-semibold">Gagal Memuat Data</div>
+              <div className="text-red-700 text-sm">{error || "Data profil tidak ditemukan"}</div>
+              <button 
+                onClick={loadProfile}
+                className="mt-2 text-sm text-red-600 hover:text-red-700 underline"
+              >
+                Coba Lagi
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const initials = (admin.full_name || "Admin")
     .split(" ")
     .map((w) => w[0])
     .slice(0, 2)
@@ -62,10 +120,10 @@ export default function AdminProfile() {
             <div className="flex items-center gap-4">
               <div className="grid h-16 w-16 place-items-center rounded-full bg-white/20 text-xl font-bold">{initials}</div>
               <div>
-                <div className="text-lg font-semibold">{mockAdmin.name}</div>
-                <div className="text-white/90 text-sm">{mockAdmin.role}</div>
-                <div className="text-white/90 text-xs">Email : {mockAdmin.email}</div>
-                <div className="text-white/90 text-xs">Telepon : {mockAdmin.phone}</div>
+                <div className="text-lg font-semibold">{admin.full_name || "Admin"}</div>
+                <div className="text-white/90 text-sm">Admin</div>
+                <div className="text-white/90 text-xs">Username : {admin.username || "-"}</div>
+                <div className="text-white/90 text-xs">Telepon : {admin.nomor_telepon || "-"}</div>
               </div>
             </div>
           </div>
@@ -76,10 +134,9 @@ export default function AdminProfile() {
           <h2 className="text-sm font-semibold text-emerald-700">Data Admin</h2>
           <div className="mt-3 grid grid-cols-1 gap-3">
             {[
-              { label: "Nama Lengkap", value: mockAdmin.name },
-              { label: "Username", value: mockAdmin.username },
-              { label: "Email", value: mockAdmin.email },
-              { label: "No. Telepon/WhatsApp", value: mockAdmin.phone },
+              { label: "Nama Lengkap", value: admin.full_name || "-" },
+              { label: "Username", value: admin.username || "-" },
+              { label: "No. Telepon/WhatsApp", value: admin.nomor_telepon || "-" },
             ].map((f) => (
               <div key={f.label}>
                 <p className="text-xs text-slate-500">{f.label}</p>
@@ -102,7 +159,7 @@ export default function AdminProfile() {
               </div>
               <div className="flex justify-end gap-2 border-t px-4 py-3">
                 <button onClick={() => setOpenLogout(false)} className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Batal</button>
-                <button onClick={() => navigate("/login")} className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">Keluar</button>
+                <button onClick={handleLogout} className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">Keluar</button>
               </div>
             </div>
           </div>

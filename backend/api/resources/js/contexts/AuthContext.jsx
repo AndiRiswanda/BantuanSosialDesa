@@ -3,6 +3,7 @@ import { authAPI } from '../services/api';
 
 const AuthContext = createContext(null);
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -19,7 +20,7 @@ export const AuthProvider = ({ children }) => {
 
   // Load user from localStorage on mount
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('auth_token');
     const savedUser = localStorage.getItem('user');
     const savedUserType = localStorage.getItem('userType');
     
@@ -57,10 +58,14 @@ export const AuthProvider = ({ children }) => {
       setUser(user);
       setUserType(responseType);
       
-      // Save to localStorage
-      localStorage.setItem('token', token);
+      // Save to localStorage - use 'auth_token' to match api.js
+      localStorage.setItem('auth_token', token);
       localStorage.setItem('user', JSON.stringify(user));
       localStorage.setItem('userType', responseType);
+      
+      console.log('✅ Login successful! Token saved to localStorage');
+      console.log('Token:', token.substring(0, 20) + '...');
+      console.log('User:', user);
       
       setLoading(false);
       return { success: true, user, type: responseType };
@@ -171,10 +176,12 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
       setUserType(null);
       
-      // Clear localStorage
-      localStorage.removeItem('token');
+      // Clear localStorage - use 'auth_token' to match api.js
+      localStorage.removeItem('auth_token');
       localStorage.removeItem('user');
       localStorage.removeItem('userType');
+      
+      console.log('✅ Logout successful! Token cleared from localStorage');
     }
   };
 
