@@ -1,26 +1,92 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import NavbarAdmin from "../../layout/NavbarAdmin";
-import { ArrowLeft, CheckCircle2, X, LogOut, Pencil } from "lucide-react";
+import { ArrowLeft, CheckCircle2, X, LogOut, Pencil, Loader2, AlertCircle } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
-
-const initial = {
-  name: "Ahmad Wijaya",
-  username: "ahmad.wijaya",
-  email: "wijaya.desaMurni@donasi.id",
-  phone: "081234567890",
-};
+import { adminAPI, removeAuthToken, removeUser } from "../../../utils/api";
 
 export default function AdminProfileEdit() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const [form, setForm] = useState(initial);
+  const [form, setForm] = useState({
+    full_name: "",
+    nomor_telepon: "",
+  });
+  const [originalData, setOriginalData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
   const [confirm, setConfirm] = useState(false);
+  const [success, setSuccess] = useState(false);
+  
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const loadProfile = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await adminAPI.getProfile();
+      
+      if (response.success && response.data) {
+        const data = {
+          full_name: response.data.full_name || "",
+          nomor_telepon: response.data.nomor_telepon || "",
+        };
+        setForm(data);
+        setOriginalData(response.data);
+      }
+    } catch (err) {
+      console.error("Error loading profile:", err);
+      setError(err.message || "Gagal memuat data profil");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const onChange = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
-  const onConfirm = () => {
-    setConfirm(false);
-    navigate("/admin/profil");
+  const onConfirm = async () => {
+    try {
+      setSaving(true);
+      setError(null);
+      
+      const response = await adminAPI.updateProfile(form);
+      
+      if (response.success) {
+        setSuccess(true);
+        setTimeout(() => {
+          setConfirm(false);
+          setSuccess(false);
+          navigate("/admin/profil");
+        }, 1500);
+      }
+    } catch (err) {
+      console.error("Error updating profile:", err);
+      setError(err.message || "Gagal menyimpan perubahan");
+      setConfirm(false);
+    } finally {
+      setSaving(false);
+    }
   };
+
+  const handleLogout = () => {
+    removeAuthToken();
+    removeUser();
+    navigate("/login");
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <NavbarAdmin />
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+          <span className="ml-3 text-slate-600">Memuat data profil...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800">
@@ -53,38 +119,78 @@ export default function AdminProfileEdit() {
               >
                 <Pencil className="w-4 h-4"/> Edit Data Profil
               </button>
-              <button onClick={() => navigate("/login")} className="w-full rounded-md border border-rose-200 bg-white px-3 py-2 text-sm text-rose-700 hover:bg-rose-50 inline-flex items-center justify-center gap-2"><LogOut className="w-4 h-4"/> Keluar</button>
+              <button onClick={handleLogout} className="w-full rounded-md border border-rose-200 bg-white px-3 py-2 text-sm text-rose-700 hover:bg-rose-50 inline-flex items-center justify-center gap-2"><LogOut className="w-4 h-4"/> Keluar</button>
             </div>
           </div>
           <div className="rounded-xl bg-emerald-700 text-white p-4 shadow-sm">
-            <div className="text-lg font-semibold">{form.name}</div>
+            <div className="text-lg font-semibold">{originalData?.full_name || "Admin"}</div>
             <div className="text-white/90 text-sm">Admin</div>
           </div>
         </div>
+
+        {/* Error Alert */}
+        {error && (
+          <div className="mt-4 bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <div className="text-red-800 font-semibold">Gagal Menyimpan</div>
+              <div className="text-red-700 text-sm">{error}</div>
+            </div>
+          </div>
+        )}
+
+        {/* Success Alert */}
+        {success && (
+          <div className="mt-4 bg-green-50 border border-green-200 rounded-xl p-4 flex items-start gap-3">
+            <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <div className="text-green-800 font-semibold">Berhasil!</div>
+              <div className="text-green-700 text-sm">Perubahan profil berhasil disimpan</div>
+            </div>
+          </div>
+        )}
 
         <div className="mt-5 rounded-xl border border-emerald-300 bg-white p-4 shadow-sm">
           <h2 className="text-sm font-semibold text-emerald-700">Edit Data Admin</h2>
           <div className="mt-3 grid grid-cols-1 gap-4">
             <div>
               <p className="text-xs text-slate-500">Nama Lengkap</p>
-              <input value={form.name} onChange={onChange("name")} className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500" />
+              <input 
+                value={form.full_name} 
+                onChange={onChange("full_name")} 
+                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500" 
+                placeholder="Masukkan nama lengkap"
+              />
             </div>
             <div>
               <p className="text-xs text-slate-500">Username</p>
-              <input value={form.username} onChange={onChange("username")} className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500" />
+              <input 
+                value={originalData?.username || ""} 
+                disabled
+                className="mt-1 w-full rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-500 cursor-not-allowed" 
+              />
+              <p className="text-xs text-slate-400 mt-1">Username tidak dapat diubah</p>
             </div>
             <div>
-              <p className="text-xs text-slate-500">Email</p>
-              <input value={form.email} onChange={onChange("email")} className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-500">No. Telepon/Whatsapp</p>
-              <input value={form.phone} onChange={onChange("phone")} className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500" />
+              <p className="text-xs text-slate-500">No. Telepon/WhatsApp</p>
+              <input 
+                value={form.nomor_telepon} 
+                onChange={onChange("nomor_telepon")} 
+                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500" 
+                placeholder="Contoh: 081234567890"
+              />
             </div>
           </div>
 
           <div className="mt-4">
-            <button onClick={() => setConfirm(true)} className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">Simpan Perubahan</button>
+            <button 
+              onClick={() => setConfirm(true)} 
+              disabled={saving}
+              className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
+            >
+              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+              {saving ? "Menyimpan..." : "Simpan Perubahan"}
+            </button>
           </div>
         </div>
 
@@ -100,8 +206,21 @@ export default function AdminProfileEdit() {
                 <p className="text-slate-600">Pastikan semua informasi yang diperbarui sudah benar sebelum disimpan. Mohon periksa kembali agar tidak ada kesalahan input.</p>
               </div>
               <div className="flex justify-end gap-2 border-t px-4 py-3">
-                <button onClick={() => setConfirm(false)} className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Batalkan</button>
-                <button onClick={onConfirm} className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">Simpan Perubahan</button>
+                <button 
+                  onClick={() => setConfirm(false)} 
+                  disabled={saving}
+                  className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Batalkan
+                </button>
+                <button 
+                  onClick={onConfirm} 
+                  disabled={saving}
+                  className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 inline-flex items-center gap-2"
+                >
+                  {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {saving ? "Menyimpan..." : "Simpan Perubahan"}
+                </button>
               </div>
             </div>
           </div>

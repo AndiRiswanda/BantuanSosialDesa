@@ -25,6 +25,7 @@ class ProgramBantuan extends Model
         'kriteria_penerima',
         'keterangan',
         'status',
+        'bukti_transfer',
     ];
 
     protected function casts(): array

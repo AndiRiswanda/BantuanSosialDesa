@@ -39,6 +39,8 @@ import AdminRecipientDetail from "./components/pages/admin/AdminRecipientDetail"
 import AdminRecipientEdit from "./components/pages/admin/AdminRecipientEdit";
 import AdminProfile from "./components/pages/admin/AdminProfile";
 import AdminProfileEdit from "./components/pages/admin/AdminProfileEdit";
+import AdminProgramDetail from "./components/pages/admin/AdminProgramDetail";
+import AdminDonationDetail from "./components/pages/admin/AdminDonationDetail";
 
 // HomePage component for the home route
 const HomePage = () => (
@@ -88,7 +90,9 @@ function App() {
             <Route path="/admin" element={<ProtectedRoute allowedTypes={['admin']}><AdminDashboard /></ProtectedRoute>} />
             <Route path="/admin/dashboard" element={<ProtectedRoute allowedTypes={['admin']}><AdminDashboard /></ProtectedRoute>} />
             <Route path="/admin/program" element={<ProtectedRoute allowedTypes={['admin']}><AdminPrograms /></ProtectedRoute>} />
+            <Route path="/admin/programs/:id" element={<ProtectedRoute allowedTypes={['admin']}><AdminProgramDetail /></ProtectedRoute>} />
             <Route path="/admin/donasi" element={<ProtectedRoute allowedTypes={['admin']}><AdminDonations /></ProtectedRoute>} />
+            <Route path="/admin/donasi/:id" element={<ProtectedRoute allowedTypes={['admin']}><AdminDonationDetail /></ProtectedRoute>} />
             <Route path="/admin/donasi/:id/jadwal" element={<ProtectedRoute allowedTypes={['admin']}><AdminDonationSchedule /></ProtectedRoute>} />
             <Route path="/admin/donasi/:id/edit" element={<ProtectedRoute allowedTypes={['admin']}><AdminDonationEdit /></ProtectedRoute>} />
             <Route path="/admin/penyaluran" element={<ProtectedRoute allowedTypes={['admin']}><AdminDistribution /></ProtectedRoute>} />

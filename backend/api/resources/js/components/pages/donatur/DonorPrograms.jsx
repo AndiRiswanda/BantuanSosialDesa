@@ -3,7 +3,7 @@ import NavbarDonatur from "../../layout/NavbarDonatur";
 import { Filter, Search, UploadCloud, Info, CalendarDays, BadgeDollarSign, PackageCheck, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import UploadProofModal from "./UploadProofModal";
-import api from "../../../services/api";
+import { donorAPI } from "../../../utils/api";
 
 function StatusPill({ color = "slate", children }) {
   const map = {
@@ -94,11 +94,11 @@ export default function DonorPrograms() {
 
   const fetchPrograms = async () => {
     try {
-      const response = await api.get('/api/donatur/programs');
-      console.log('API Response:', response.data); // Debug log
+      const response = await donorAPI.getPrograms();
+      console.log('API Response:', response); // Debug log
       
-      // Laravel pagination returns data in response.data.data
-      const programsData = response.data.data || response.data;
+      // Laravel pagination returns data in response.data
+      const programsData = response.data || response;
       
       // Transform API data to match component format
       const transformedPrograms = programsData.map(program => {
@@ -129,6 +129,22 @@ export default function DonorPrograms() {
           statusColor = 'yellow';
         }
         
+        // Determine CTA key and note for pending money donations
+        let ctaKey = undefined;
+        let note = null;
+        
+        if (program.status === 'pending' && program.jenis_bantuan === 'uang') {
+          if (program.bukti_transfer) {
+            ctaKey = 'view';
+            note = 'Menunggu review admin...';
+          } else {
+            ctaKey = 'upload';
+            note = 'Menunggu upload bukti transfer';
+          }
+        } else if (program.status === 'aktif') {
+          note = 'Program sedang berjalan';
+        }
+        
         return {
           id: program.id_program,
           title: program.nama_program,
@@ -137,8 +153,9 @@ export default function DonorPrograms() {
           type: program.jenis_bantuan === 'uang' ? 'Uang' : 'Barang',
           amount: amount,
           status: uiStatus,
-          note: program.status === 'aktif' ? 'Program sedang berjalan' : null,
-          ctaKey: 'view',
+          note: note,
+          ctaKey: ctaKey,
+          buktiTransfer: program.bukti_transfer,
           progress: program.status === 'selesai' ? 100 : (program.status === 'aktif' ? 50 : 0),
         };
       });
@@ -304,7 +321,15 @@ export default function DonorPrograms() {
                           },
                         }
                       : p.ctaKey === "view"
-                      ? { label: "Lihat Bukti Transfer", icon: <PackageCheck className="w-4 h-4" /> }
+                      ? { 
+                          label: "Lihat Bukti Transfer", 
+                          icon: <PackageCheck className="w-4 h-4" />,
+                          onClick: () => {
+                            if (p.buktiTransfer) {
+                              window.open(p.buktiTransfer, '_blank');
+                            }
+                          },
+                        }
                       : undefined
                   }
                   note={p.note}
@@ -366,10 +391,16 @@ export default function DonorPrograms() {
       {showUpload && (
         <UploadProofModal
           onClose={() => setShowUpload(false)}
-          onSave={(file) => {
-            // Placeholder: integrate API upload here
-            console.log("Saved proof for program", activeProgramId, file);
-            setShowUpload(false);
+          onSave={async (file) => {
+            try {
+              await donorAPI.uploadProof(activeProgramId, file);
+              setShowUpload(false);
+              // Refresh programs list
+              fetchPrograms();
+            } catch (error) {
+              console.error('Error uploading proof:', error);
+              alert('Gagal mengunggah bukti transfer: ' + (error.response?.data?.message || error.message));
+            }
           }}
         />
       )}

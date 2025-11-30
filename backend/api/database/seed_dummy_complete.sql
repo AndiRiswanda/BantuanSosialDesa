@@ -7,9 +7,9 @@ USE `bantuan_sosial_desa`;
 -- 1. ADMIN
 -- ================================================
 -- Password: admin123
-INSERT INTO `user_admin` (`username`, `email`, `password`, `full_name`, `status`) VALUES
-('admin', 'admin@desa.id', '$2y$10$F0z9cr2B4S5UZhaZF20KnOfn0QL5qOx1YpMvgUjc1VXvvV5md9DRy', 'Administrator Desa', 'active'),
-('kepala_desa', 'kepaladesa@desa.id', '$2y$10$F0z9cr2B4S5UZhaZF20KnOfn0QL5qOx1YpMvgUjc1VXvvV5md9DRy', 'Kepala Desa Sejahtera', 'active');
+INSERT INTO `user_admin` (`username`, `email`, `password`, `full_name`, `nomor_telepon`, `status`) VALUES
+('admin', 'admin@desa.id', '$2y$10$F0z9cr2B4S5UZhaZF20KnOfn0QL5qOx1YpMvgUjc1VXvvV5md9DRy', 'Administrator Desa', '0812-3456-7890', 'active'),
+('kepala_desa', 'kepaladesa@desa.id', '$2y$10$F0z9cr2B4S5UZhaZF20KnOfn0QL5qOx1YpMvgUjc1VXvvV5md9DRy', 'Kepala Desa Sejahtera', '0813-9876-5432', 'active');
 
 -- ================================================
 -- 2. KATEGORI BANTUAN
@@ -127,25 +127,25 @@ INSERT INTO `penerima_program` (`id_program`, `id_penerima`, `tanggal_penetapan`
 -- 7. TRANSAKSI PENYALURAN
 -- ================================================
 -- CATATAN: Schema memerlukan: tanggal_penyaluran, jam_penyaluran, jumlah_diterima, metode_penyaluran (transfer/barang)
-INSERT INTO `transaksi_penyaluran` (`id_penerima_program`, `tanggal_penyaluran`, `jam_penyaluran`, `lokasi_penyaluran`, `jumlah_diterima`, `metode_penyaluran`, `catatan`) VALUES
+INSERT INTO `transaksi_penyaluran` (`id_penerima_program`, `tanggal_penyaluran`, `jam_penyaluran`, `lokasi_penyaluran`, `jumlah_diterima`, `metode_penyaluran`, `status_penyaluran`, `catatan`) VALUES
 -- Penyaluran untuk Program 1 (Sembako Ramadan) - 3 sudah selesai
-(1, '2025-02-15', '09:00:00', 'Kantor Desa Sejahtera', 1.00, 'barang', 'Penyaluran Tahap 1 - 1 paket sembako'),
-(2, '2025-02-15', '09:15:00', 'Kantor Desa Sejahtera', 1.00, 'barang', 'Penyaluran Tahap 1 - 1 paket sembako'),
-(3, '2025-02-20', '10:00:00', 'Kantor Desa Sejahtera', 1.00, 'barang', 'Penyaluran Tahap 1 - 1 paket sembako'),
+(1, '2025-02-15', '09:00:00', 'Kantor Desa Sejahtera', 1.00, 'barang', 'selesai', 'Penyaluran Tahap 1 - 1 paket sembako'),
+(2, '2025-02-15', '09:15:00', 'Kantor Desa Sejahtera', 1.00, 'barang', 'selesai', 'Penyaluran Tahap 1 - 1 paket sembako'),
+(3, '2025-02-20', '10:00:00', 'Kantor Desa Sejahtera', 1.00, 'barang', 'selesai', 'Penyaluran Tahap 1 - 1 paket sembako'),
 
 -- Penyaluran untuk Program 2 (Beasiswa) - 2 sudah selesai
-(9, '2025-02-01', '14:00:00', 'Kantor Desa Sejahtera', 500000.00, 'transfer', 'Transfer beasiswa semester 1 - Rp 500.000'),
-(10, '2025-02-01', '14:30:00', 'Kantor Desa Sejahtera', 500000.00, 'transfer', 'Transfer beasiswa semester 1 - Rp 500.000'),
+(9, '2025-02-01', '14:00:00', 'Kantor Desa Sejahtera', 500000.00, 'transfer', 'selesai', 'Transfer beasiswa semester 1 - Rp 500.000'),
+(10, '2025-02-01', '14:30:00', 'Kantor Desa Sejahtera', 500000.00, 'transfer', 'selesai', 'Transfer beasiswa semester 1 - Rp 500.000'),
 
 -- Penyaluran untuk Program 8 (Bantuan Banjir - SELESAI) - Semua sudah tersalurkan
-(32, '2025-01-25', '08:00:00', 'Posko Banjir RT 01', 1.00, 'barang', 'Bantuan darurat paket sembako dan pakaian'),
-(33, '2025-01-25', '08:30:00', 'Posko Banjir RT 01', 1.00, 'barang', 'Bantuan darurat paket sembako dan pakaian'),
-(34, '2025-01-25', '09:00:00', 'Posko Banjir RT 02', 1.00, 'barang', 'Bantuan darurat paket sembako dan pakaian'),
-(35, '2025-01-25', '09:30:00', 'Posko Banjir RT 02', 1.00, 'barang', 'Bantuan darurat paket sembako dan pakaian'),
-(36, '2025-01-26', '08:00:00', 'Posko Banjir RT 03', 1.00, 'barang', 'Bantuan darurat paket sembako dan pakaian'),
-(37, '2025-01-26', '08:30:00', 'Posko Banjir RT 03', 1.00, 'barang', 'Bantuan darurat paket sembako dan pakaian'),
-(38, '2025-01-26', '09:00:00', 'Posko Banjir RT 04', 1.00, 'barang', 'Bantuan darurat paket sembako dan pakaian'),
-(39, '2025-01-26', '09:30:00', 'Posko Banjir RT 04', 1.00, 'barang', 'Bantuan darurat paket sembako dan pakaian');
+(38, '2025-01-25', '08:00:00', 'Posko Banjir RT 01', 1.00, 'barang', 'selesai', 'Bantuan darurat paket sembako dan pakaian'),
+(39, '2025-01-25', '08:30:00', 'Posko Banjir RT 01', 1.00, 'barang', 'selesai', 'Bantuan darurat paket sembako dan pakaian'),
+(40, '2025-01-25', '09:00:00', 'Posko Banjir RT 02', 1.00, 'barang', 'selesai', 'Bantuan darurat paket sembako dan pakaian'),
+(41, '2025-01-25', '09:30:00', 'Posko Banjir RT 02', 1.00, 'barang', 'selesai', 'Bantuan darurat paket sembako dan pakaian'),
+(42, '2025-01-26', '08:00:00', 'Posko Banjir RT 03', 1.00, 'barang', 'selesai', 'Bantuan darurat paket sembako dan pakaian'),
+(43, '2025-01-26', '08:30:00', 'Posko Banjir RT 03', 1.00, 'barang', 'selesai', 'Bantuan darurat paket sembako dan pakaian'),
+(44, '2025-01-26', '09:00:00', 'Posko Banjir RT 04', 1.00, 'barang', 'selesai', 'Bantuan darurat paket sembako dan pakaian'),
+(45, '2025-01-26', '09:30:00', 'Posko Banjir RT 04', 1.00, 'barang', 'selesai', 'Bantuan darurat paket sembako dan pakaian');
 
 -- ================================================
 -- SUMMARY STATISTIK

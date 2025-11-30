@@ -14,7 +14,7 @@ return new class extends Migration {
             $table->date('tanggal_penetapan');
             $table->enum('status_penerimaan', ['menunggu', 'selesai', 'batal'])->default('menunggu');
             $table->unsignedBigInteger('created_by');
-            $table->timestamp('created_at')->useCurrent();
+            $table->timestamps();
 
             $table->unique(['id_program', 'id_penerima'], 'uk_penerima_program_unique');
             $table->foreign('id_program')->references('id_program')->on('program_bantuan')

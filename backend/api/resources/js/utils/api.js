@@ -3,17 +3,17 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 // Get auth token from localStorage
 const getAuthToken = () => {
-  return localStorage.getItem('token');
+  return localStorage.getItem('auth_token');
 };
 
 // Set auth token to localStorage
 export const setAuthToken = (token) => {
-  localStorage.setItem('token', token);
+  localStorage.setItem('auth_token', token);
 };
 
 // Remove auth token from localStorage
 export const removeAuthToken = () => {
-  localStorage.removeItem('token');
+  localStorage.removeItem('auth_token');
 };
 
 // Get user data from localStorage
@@ -209,27 +209,62 @@ export const authAPI = {
 
 // Donor APIs
 export const donorAPI = {
-  getDashboard: () => apiFetch('/api/donor/dashboard'),
+  getDashboard: () => apiFetch('/api/donatur/dashboard'),
   
-  getPrograms: () => apiFetch('/api/donor/programs'),
+  getPrograms: () => apiFetch('/api/donatur/programs'),
   
-  getProgramDetail: (id) => apiFetch(`/api/donor/programs/${id}`),
+  getProgramDetail: (id) => apiFetch(`/api/donatur/programs/${id}`),
   
   createDonation: (data) =>
-    apiFetch('/api/donor/donations', {
+    apiFetch('/api/donatur/programs', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
   
-  getDonations: () => apiFetch('/api/donor/donations'),
+  getDonations: () => apiFetch('/api/donatur/programs'),
   
-  getProfile: () => apiFetch('/api/donor/profile'),
+  getProfile: () => apiFetch('/api/donatur/profile'),
   
   updateProfile: (data) =>
-    apiFetch('/api/donor/profile', {
+    apiFetch('/api/donatur/profile', {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
+  
+  // Upload bukti transfer for pending program
+  uploadProof: async (programId, file) => {
+    const token = getAuthToken();
+    const formData = new FormData();
+    formData.append('bukti_transfer', file);
+    
+    const response = await fetch(`${API_BASE_URL}/api/donatur/programs/${programId}/upload-proof`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+      },
+      body: formData,
+    });
+    
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      throw new Error('Server response is not JSON');
+    }
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      const error = new Error(data.message || 'Failed to upload proof');
+      error.response = {
+        status: response.status,
+        data: data,
+        statusText: response.statusText
+      };
+      throw error;
+    }
+    
+    return data;
+  },
 };
 
 // Recipient APIs
@@ -262,7 +297,24 @@ export const adminAPI = {
   getDashboard: () => apiFetch('/api/admin/dashboard'),
   
   // Programs
-  getPrograms: () => apiFetch('/api/admin/programs'),
+  getPrograms: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiFetch(`/api/admin/programs${queryString ? '?' + queryString : ''}`);
+  },
+  getPendingPrograms: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiFetch(`/api/admin/programs/pending/list${queryString ? '?' + queryString : ''}`);
+  },
+  approveProgram: (id) =>
+    apiFetch(`/api/admin/programs/${id}/approve`, {
+      method: 'POST',
+    }),
+  rejectProgram: (id, data) =>
+    apiFetch(`/api/admin/programs/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getProgramDetail: (id) => apiFetch(`/api/admin/programs/${id}`),
   createProgram: (data) =>
     apiFetch('/api/admin/programs', {
       method: 'POST',
@@ -278,32 +330,38 @@ export const adminAPI = {
       method: 'DELETE',
     }),
   
-  // Donations
-  getDonations: () => apiFetch('/api/admin/donations'),
-  getDonationDetail: (id) => apiFetch(`/api/admin/donations/${id}`),
-  updateDonation: (id, data) =>
-    apiFetch(`/api/admin/donations/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    }),
-  scheduleDonation: (id, data) =>
-    apiFetch(`/api/admin/donations/${id}/schedule`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    }),
-  
-  // Distributions
-  getDistributions: () => apiFetch('/api/admin/distributions'),
-  verifyDistribution: (data) =>
-    apiFetch('/api/admin/distributions/verify', {
+  // Categories
+  getCategories: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiFetch(`/api/admin/categories${queryString ? '?' + queryString : ''}`);
+  },
+  createCategory: (data) =>
+    apiFetch('/api/admin/categories', {
       method: 'POST',
       body: JSON.stringify(data),
+    }),
+  updateCategory: (id, data) =>
+    apiFetch(`/api/admin/categories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deleteCategory: (id) =>
+    apiFetch(`/api/admin/categories/${id}`, {
+      method: 'DELETE',
     }),
   
   // Verifications
   getVerifications: () => apiFetch('/api/admin/verifications'),
+  getPendingDonors: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiFetch(`/api/admin/verifications/donatur${queryString ? '?' + queryString : ''}`);
+  },
+  getPendingRecipients: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiFetch(`/api/admin/verifications/recipients${queryString ? '?' + queryString : ''}`);
+  },
   verifyDonor: (id, data) =>
-    apiFetch(`/api/admin/verifications/donors/${id}`, {
+    apiFetch(`/api/admin/verifications/donatur/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
@@ -314,28 +372,114 @@ export const adminAPI = {
     }),
   
   // Donors
-  getDonors: () => apiFetch('/api/admin/donors'),
-  getDonorDetail: (id) => apiFetch(`/api/admin/donors/${id}`),
+  getDonors: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiFetch(`/api/admin/donatur${queryString ? '?' + queryString : ''}`);
+  },
+  getDonorDetail: (id) => apiFetch(`/api/admin/donatur/${id}`),
   updateDonor: (id, data) =>
-    apiFetch(`/api/admin/donors/${id}`, {
+    apiFetch(`/api/admin/donatur/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
+  deleteDonor: (id) =>
+    apiFetch(`/api/admin/donatur/${id}`, {
+      method: 'DELETE',
+    }),
   
   // Recipients
-  getRecipients: () => apiFetch('/api/admin/recipients'),
+  getRecipients: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiFetch(`/api/admin/recipients${queryString ? '?' + queryString : ''}`);
+  },
   getRecipientDetail: (id) => apiFetch(`/api/admin/recipients/${id}`),
   updateRecipient: (id, data) =>
     apiFetch(`/api/admin/recipients/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
+  deleteRecipient: (id) =>
+    apiFetch(`/api/admin/recipients/${id}`, {
+      method: 'DELETE',
+    }),
+  
+  // Penerima Program (Recipients in Programs)
+  getPenerimaPrograms: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiFetch(`/api/admin/penerima-program${queryString ? '?' + queryString : ''}`);
+  },
+  assignPenerimaToProgram: (data) =>
+    apiFetch('/api/admin/penerima-program', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updatePenerimaProgram: (id, data) =>
+    apiFetch(`/api/admin/penerima-program/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deletePenerimaProgram: (id) =>
+    apiFetch(`/api/admin/penerima-program/${id}`, {
+      method: 'DELETE',
+    }),
+  
+  // Transaksi Penyaluran (Distribution Transactions)
+  getTransaksi: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiFetch(`/api/admin/transaksi${queryString ? '?' + queryString : ''}`);
+  },
+  getTransaksiDetail: (id) => apiFetch(`/api/admin/transaksi/${id}`),
+  createTransaksi: (data) =>
+    apiFetch('/api/admin/transaksi', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateTransaksi: (id, data) =>
+    apiFetch(`/api/admin/transaksi/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deleteTransaksi: (id) =>
+    apiFetch(`/api/admin/transaksi/${id}`, {
+      method: 'DELETE',
+    }),
+  
+  // Laporan Transparansi (Transparency Reports)
+  getReports: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiFetch(`/api/admin/reports${queryString ? '?' + queryString : ''}`);
+  },
+  createReport: (data) =>
+    apiFetch('/api/admin/reports', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateReport: (id, data) =>
+    apiFetch(`/api/admin/reports/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deleteReport: (id) =>
+    apiFetch(`/api/admin/reports/${id}`, {
+      method: 'DELETE',
+    }),
+  
+  // Analytics
+  getAnalytics: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiFetch(`/api/admin/analytics${queryString ? '?' + queryString : ''}`);
+  },
   
   // Profile
   getProfile: () => apiFetch('/api/admin/profile'),
   updateProfile: (data) =>
     apiFetch('/api/admin/profile', {
       method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  changePassword: (data) =>
+    apiFetch('/api/admin/change-password', {
+      method: 'POST',
       body: JSON.stringify(data),
     }),
 };

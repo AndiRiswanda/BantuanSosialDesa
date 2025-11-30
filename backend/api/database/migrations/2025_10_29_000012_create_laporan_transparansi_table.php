@@ -15,7 +15,7 @@ return new class extends Migration {
             $table->text('dokumentasi')->nullable();
             $table->date('tanggal_publikasi');
             $table->unsignedBigInteger('created_by');
-            $table->timestamp('created_at')->useCurrent();
+            $table->timestamps();
 
             $table->foreign('id_program')->references('id_program')->on('program_bantuan')
                   ->onUpdate('cascade')->onDelete('restrict');

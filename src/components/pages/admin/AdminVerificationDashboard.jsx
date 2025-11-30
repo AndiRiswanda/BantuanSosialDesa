@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useState, useEffect } from "react";
 import NavbarAdmin from "../../layout/NavbarAdmin";
-import { Check, Eye, Mail, MoreVertical, Search, ThumbsDown, ThumbsUp, UserX, ShieldCheck, Edit, Lock, Unlock, Trash2, X, AlertTriangle } from "lucide-react";
+import { Check, Eye, Mail, MoreVertical, Search, ThumbsUp, ThumbsDown, UserX, ShieldCheck, Edit, Lock, Unlock, Trash2, X, AlertTriangle, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { adminAPI } from "../../../utils/api";
 
 const Segmented = ({ value, onChange }) => {
   const items = [
@@ -27,85 +28,134 @@ const Segmented = ({ value, onChange }) => {
   );
 };
 
-const applicantSamples = [
-  {
-    id: 1,
-    name: "Siti Nurhaliza",
-    nik: "32024567890123",
-    address: "Jl. Kenanga No. 15 RT 002, Kelurahan Mawar",
-    tag: "Baru Nikah",
-    phone: "081234567890",
-    job: "Buruh Harian",
-    dependents: 4,
-    income: "Rp 1.000.000,-  -  Rp 2.000.000,- /bulan",
-    reason: "Penghasilan tidak mencukupi untuk kebutuhan keluarga dengan 4 anak",
-    docs: ["Kartu Keluarga", "Foto Rumah"],
-  },
-  {
-    id: 2,
-    name: "Ahmad Fauzi",
-    nik: "320345678921088",
-    address: "Jl. Melati No. 8, RT 004/02",
-    tag: "Tulang pK",
-    phone: "082345678901",
-    job: "Tukang Ojek",
-    dependents: 2,
-    income: "Rp 500.000,-  -  Rp 1.000.000,- /bulan",
-    reason: "Anak yatim piatu, tinggal bersama nenek yang sudah lansia",
-    docs: ["Kartu Keluarga", "Foto Rumah"],
-  },
-  {
-    id: 3,
-    name: "Dewi Lestari",
-    nik: "320456789012345",
-    address: "Jl. Dahlia No. 22, RT 004/02",
-    tag: "Tidak bekerja (Lansia)",
-    phone: "083456789012",
-    job: "Tidak bekerja (Lansia)",
-    dependents: 1,
-    income: "< Rp 500.000,-",
-    reason: "Lansia tanpa penghasilan, hidup sendiri tanpa keluarga",
-    docs: ["Kartu Keluarga", "Foto Rumah"],
-  },
-];
-
 export default function AdminVerificationDashboard() {
   const navigate = useNavigate();
   const [active, setActive] = useState("pengajuan");
   const [openDetail, setOpenDetail] = useState({});
   const [query, setQuery] = useState("");
-  const [donors, setDonors] = useState(() => Array.from({ length: 10 }).map((_, i) => ({
-    id: i + 1,
-    name: `Yayasan Peduli Negeri ${i + 1}`,
-    type: "Organisasi",
-    address: `Jl. Melati No. ${10 + i}, RT 01/02`,
-    email: `donatur${i + 1}@mail.com`,
-  })));
-  const [recipients, setRecipients] = useState(() => Array.from({ length: 8 }).map((_, i) => ({
-    id: i + 1,
-    name: `Warga ${i + 1}`,
-    nik: `3174-45${i}00${i}`,
-    address: `Jl. Mawar No. ${i + 10}, RT 01/03`,
-    phone: `08${i}2345678${i}`,
-  })));
-  const [confirmDelete, setConfirmDelete] = useState(null); // {entity:'donor'|'recipient', id, label}
+  
+  // State for data
+  const [pendingRecipients, setPendingRecipients] = useState([]);
+  const [donors, setDonors] = useState([]);
+  const [recipients, setRecipients] = useState([]);
+  
+  // Loading states
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
-  const filteredApplicants = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return applicantSamples.filter(
-      (a) => !q || a.name.toLowerCase().includes(q) || a.nik.includes(q) || a.address.toLowerCase().includes(q)
-    );
+  useEffect(() => {
+    loadData();
+  }, [active]);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      if (active === "pengajuan") {
+        const response = await adminAPI.getPendingRecipients({ search: query });
+        if (response.success && response.data) {
+          const data = response.data.data || response.data;
+          setPendingRecipients(Array.isArray(data) ? data : []);
+        }
+      } else if (active === "donatur") {
+        const response = await adminAPI.getDonors({ search: query });
+        if (response.success && response.data) {
+          const data = response.data.data || response.data;
+          setDonors(Array.isArray(data) ? data : []);
+        }
+      } else if (active === "penerima") {
+        const response = await adminAPI.getRecipients({ search: query });
+        if (response.success && response.data) {
+          const data = response.data.data || response.data;
+          setRecipients(Array.isArray(data) ? data : []);
+        }
+      }
+    } catch (err) {
+      console.error("Error loading data:", err);
+      setError(err.message || "Gagal memuat data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Search with debounce
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (query) {
+        loadData();
+      }
+    }, 500);
+    
+    return () => clearTimeout(timeoutId);
   }, [query]);
 
-  const donorsFiltered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return donors.filter((d) => !q || d.name.toLowerCase().includes(q) || d.email.toLowerCase().includes(q) || d.address.toLowerCase().includes(q));
-  }, [donors, query]);
+  const handleVerifyRecipient = async (id, status) => {
+    try {
+      setActionLoading(true);
+      await adminAPI.verifyRecipient(id, { 
+        status_verifikasi: status 
+      });
+      loadData();
+      alert(status === 'terverifikasi' ? 'Penerima berhasil diverifikasi' : 'Pengajuan ditolak');
+    } catch (err) {
+      console.error("Error verifying recipient:", err);
+      alert(err.message || "Gagal memverifikasi penerima");
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
-  const recipientsFiltered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return recipients.filter((r) => !q || r.name.toLowerCase().includes(q) || r.nik.includes(q) || r.address.toLowerCase().includes(q));
-  }, [recipients, query]);
+  const handleVerifyDonor = async (id, status) => {
+    try {
+      setActionLoading(true);
+      await adminAPI.verifyDonor(id, { status });
+      loadData();
+      alert(status === 'aktif' ? 'Donatur berhasil diverifikasi' : 'Verifikasi donatur ditolak');
+    } catch (err) {
+      console.error("Error verifying donor:", err);
+      alert(err.message || "Gagal memverifikasi donatur");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteDonor = async (id) => {
+    if (!window.confirm('Apakah Anda yakin ingin menghapus donatur ini?')) return;
+    
+    try {
+      setActionLoading(true);
+      await adminAPI.deleteDonor(id);
+      loadData();
+      alert('Donatur berhasil dihapus');
+      setConfirmDelete(null);
+    } catch (err) {
+      console.error("Error deleting donor:", err);
+      alert(err.message || "Gagal menghapus donatur");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteRecipient = async (id) => {
+    if (!window.confirm('Apakah Anda yakin ingin menghapus penerima ini?')) return;
+    
+    try {
+      setActionLoading(true);
+      await adminAPI.deleteRecipient(id);
+      loadData();
+      alert('Penerima berhasil dihapus');
+      setConfirmDelete(null);
+    } catch (err) {
+      console.error("Error deleting recipient:", err);
+      alert(err.message || "Gagal menghapus penerima");
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800">
@@ -124,117 +174,141 @@ export default function AdminVerificationDashboard() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder={active === "donatur" ? "Cari nama donatur atau email" : "Cari Nama Penerima atau Program"}
+              placeholder={active === "donatur" ? "Cari nama donatur atau email" : "Cari Nama Penerima atau NIK"}
               className="w-full rounded-md border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>
         </div>
 
-        {active === "pengajuan" && (
+        {error && (
+          <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
+            <div>
+              <div className="text-red-800 font-semibold">Gagal Memuat Data</div>
+              <div className="text-red-700 text-sm">{error}</div>
+              <button 
+                onClick={loadData}
+                className="mt-2 text-sm text-red-600 hover:text-red-700 underline"
+              >
+                Coba Lagi
+              </button>
+            </div>
+          </div>
+        )}
+
+        {loading && (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+            <span className="ml-3 text-slate-600">Memuat data...</span>
+          </div>
+        )}
+
+        {!loading && active === "pengajuan" && (
           <section className="mt-5">
             <div className="mb-2 flex items-center gap-2">
               <span role="img" aria-label="sparkles">✨</span>
               <h2 className="text-sm font-semibold">Verifikasi Pengajuan Penerima Baru</h2>
             </div>
             <div className="space-y-4">
-              {filteredApplicants.length === 0 ? (
-                <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 flex items-center gap-3">
-                  <AlertTriangle className="w-5 h-5" />
-                  <div>Tidak ada hasil yang cocok untuk pencarian Anda.</div>
+              {pendingRecipients.length === 0 ? (
+                <div className="rounded-lg border border-slate-200 bg-white p-8 text-center">
+                  <p className="text-slate-600 text-sm">Tidak ada pengajuan penerima yang menunggu verifikasi.</p>
                 </div>
               ) : (
-                filteredApplicants.map((a) => {
-                const open = !!openDetail[a.id];
-                return (
-                  <div key={a.id} className="rounded-xl border border-slate-200 bg-white shadow-sm">
-                    <div className="p-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <h3 className="text-base font-semibold text-slate-800">{a.name}</h3>
-                          <p className="text-xs text-slate-600">NIK: {a.nik}</p>
-                          <p className="mt-1 text-xs text-slate-600">Alamat: {a.address}</p>
-                          <div className="mt-2 inline-flex items-center gap-2">
-                            <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 border border-emerald-200">{a.tag}</span>
+                pendingRecipients.map((recipient) => {
+                  const open = !!openDetail[recipient.id_penerima];
+                  return (
+                    <div key={recipient.id_penerima} className="rounded-xl border border-slate-200 bg-white shadow-sm">
+                      <div className="p-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <h3 className="text-base font-semibold text-slate-800">{recipient.nama_kepala}</h3>
+                            <p className="text-xs text-slate-600">NIK/No. KK: {recipient.no_kk}</p>
+                            <p className="mt-1 text-xs text-slate-600">Alamat: {recipient.alamat || '-'}</p>
+                            <div className="mt-2 inline-flex items-center gap-2">
+                              <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 border border-emerald-200">
+                                {recipient.pekerjaan || 'Tidak Bekerja'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 border border-amber-200">
+                              {recipient.status_verifikasi === 'pending' ? 'Pending' : recipient.status_verifikasi}
+                            </span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 border border-amber-200">Pending</span>
-                          <button type="button" className="text-slate-500 hover:text-slate-700">
-                            <MoreVertical className="w-5 h-5" />
+
+                        <div className="mt-3">
+                          <button
+                            type="button"
+                            onClick={() => setOpenDetail((m) => ({ ...m, [recipient.id_penerima]: !m[recipient.id_penerima] }))}
+                            className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                          >
+                            {open ? "Sembunyikan Detail" : "Lihat Detail Lengkap"}
                           </button>
                         </div>
-                      </div>
 
-                      <div className="mt-3">
-                        <button
-                          type="button"
-                          onClick={() => setOpenDetail((m) => ({ ...m, [a.id]: !m[a.id] }))}
-                          className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                        >
-                          {open ? "Sembunyikan Detail" : "Lihat Detail Lengkap"}
-                        </button>
-                      </div>
-
-                      {open && (
-                        <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                            <div className="space-y-2">
-                              <div>
-                                <p className="text-xs text-slate-500">Pekerjaan</p>
-                                <p className="font-medium">{a.job}</p>
+                        {open && (
+                          <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                              <div className="space-y-2">
+                                <div>
+                                  <p className="text-xs text-slate-500">Pekerjaan</p>
+                                  <p className="font-medium">{recipient.pekerjaan || '-'}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-slate-500">Jumlah Tanggungan</p>
+                                  <p className="font-medium">{recipient.jumlah_tanggungan || 0} orang</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-slate-500">Penghasilan</p>
+                                  <p className="font-medium">{recipient.penghasilan || '-'}</p>
+                                </div>
                               </div>
-                              <div>
-                                <p className="text-xs text-slate-500">Jumlah Tanggungan</p>
-                                <p className="font-medium">{a.dependents} orang</p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-slate-500">Alasan Pengajuan</p>
-                                <input readOnly className="mt-1 w-full rounded border border-slate-300 bg-white px-2 py-1 text-xs" value={a.reason} />
-                              </div>
-                            </div>
-                            <div className="space-y-2">
-                              <div>
-                                <p className="text-xs text-slate-500">Penghasilan</p>
-                                <p className="font-medium">{a.income}</p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-slate-500">No. Telepon / WhatsApp</p>
-                                <p className="font-medium">{a.phone}</p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-slate-500">Dokumen Lampiran</p>
-                                <div className="mt-1 space-y-1">
-                                  {a.docs.map((d) => (
-                                    <button key={d} type="button" className="flex w-full items-center justify-between rounded border border-slate-300 bg-white px-2 py-1 text-xs hover:bg-slate-50">
-                                      <span>{d}</span>
-                                      <Eye className="w-4 h-4 text-slate-500" />
-                                    </button>
-                                  ))}
+                              <div className="space-y-2">
+                                <div>
+                                  <p className="text-xs text-slate-500">Pekerjaan Istri/Suami</p>
+                                  <p className="font-medium">{recipient.pekerjaan_istri || '-'}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-slate-500">No. Telepon / WhatsApp</p>
+                                  <p className="font-medium">{recipient.nomor_telepon || '-'}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-slate-500">Status Anak</p>
+                                  <p className="font-medium">{recipient.status_anak || '-'}</p>
                                 </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      )}
+                        )}
 
-                      <div className="mt-3 flex items-center gap-3">
-                        <button className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
-                          <ThumbsUp className="w-4 h-4" /> Setujui
-                        </button>
-                        <button className="inline-flex items-center gap-2 rounded-md bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700">
-                          <ThumbsDown className="w-4 h-4" /> Tidak
-                        </button>
+                        <div className="mt-3 flex items-center gap-3">
+                          <button 
+                            onClick={() => handleVerifyRecipient(recipient.id_penerima, 'terverifikasi')}
+                            disabled={actionLoading}
+                            className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                          >
+                            <ThumbsUp className="w-4 h-4" /> Setujui
+                          </button>
+                          <button 
+                            onClick={() => handleVerifyRecipient(recipient.id_penerima, 'ditolak')}
+                            disabled={actionLoading}
+                            className="inline-flex items-center gap-2 rounded-md bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-50"
+                          >
+                            <ThumbsDown className="w-4 h-4" /> Tolak
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
+                  );
                 })
               )}
             </div>
           </section>
         )}
 
-        {active === "donatur" && (
+        {!loading && active === "donatur" && (
           <section className="mt-5">
             <div className="mb-2 flex items-center gap-2">
               <span role="img" aria-label="donor">🧑‍💼</span>
@@ -248,38 +322,68 @@ export default function AdminVerificationDashboard() {
                     <th className="px-3 py-2">Jenis</th>
                     <th className="px-3 py-2">Alamat</th>
                     <th className="px-3 py-2">Email</th>
+                    <th className="px-3 py-2">Status</th>
                     <th className="px-3 py-2">Aksi</th>
                   </tr>
                 </thead>
-                {donorsFiltered.length === 0 ? (
+                {donors.length === 0 ? (
                   <tbody>
                     <tr>
-                      <td colSpan={5} className="px-4 py-6 text-center text-sm text-rose-700">
-                        <div className="inline-flex items-center gap-3 justify-center">
-                          <AlertTriangle className="w-5 h-5" />
-                          Tidak ada donatur yang cocok dengan pencarian Anda.
-                        </div>
+                      <td colSpan={6} className="px-4 py-6 text-center text-sm text-slate-600">
+                        Tidak ada data donatur.
                       </td>
                     </tr>
                   </tbody>
                 ) : (
                   <tbody className="divide-y divide-slate-200">
-                    {donorsFiltered.map((d) => (
-                      <tr key={d.id}>
+                    {donors.map((donor) => (
+                      <tr key={donor.id_donatur}>
                         <td className="px-3 py-2">
-                          <button type="button" onClick={() => navigate(`/admin/verifikasi/donatur/${d.id}`)} className="text-left text-emerald-700 hover:underline">{d.name}</button>
+                          <button 
+                            type="button" 
+                            onClick={() => navigate(`/admin/donors/${donor.id_donatur}`)} 
+                            className="text-left text-emerald-700 hover:underline"
+                          >
+                            {donor.nama_organisasi || donor.nama_lengkap}
+                          </button>
                         </td>
-                        <td className="px-3 py-2">{d.type}</td>
-                        <td className="px-3 py-2">{d.address}</td>
-                        <td className="px-3 py-2">{d.email}</td>
+                        <td className="px-3 py-2">{donor.nama_organisasi ? 'Organisasi' : 'Individu'}</td>
+                        <td className="px-3 py-2 text-xs">{donor.alamat || '-'}</td>
+                        <td className="px-3 py-2">{donor.email}</td>
+                        <td className="px-3 py-2">
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
+                            donor.status === 'aktif' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                          }`}>
+                            {donor.status}
+                          </span>
+                        </td>
                         <td className="px-3 py-2">
                           <div className="flex items-center gap-2">
-                            <button className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-emerald-700" title="Verifikasi"><ShieldCheck className="w-4 h-4"/></button>
-                            <button className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-blue-700" title="Kirim Email"><Mail className="w-4 h-4"/></button>
-                            <button onClick={() => navigate(`/admin/verifikasi/donatur/${d.id}/edit`)} className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 text-amber-700" title="Ubah"><Edit className="w-4 h-4"/></button>
-                            <button className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-rose-100 text-rose-700" title="Blokir"><Lock className="w-4 h-4"/></button>
-                            <button className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-slate-700" title="Buka Blokir"><Unlock className="w-4 h-4"/></button>
-                            <button onClick={() => setConfirmDelete({ entity: 'donor', id: d.id, label: d.name })} className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-red-100 text-red-700" title="Hapus Akun"><Trash2 className="w-4 h-4"/></button>
+                            {donor.status === 'nonaktif' && (
+                              <button 
+                                onClick={() => handleVerifyDonor(donor.id_donatur, 'aktif')}
+                                disabled={actionLoading}
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 hover:bg-emerald-200 disabled:opacity-50" 
+                                title="Verifikasi"
+                              >
+                                <ShieldCheck className="w-4 h-4"/>
+                              </button>
+                            )}
+                            <button 
+                              onClick={() => navigate(`/admin/donors/${donor.id_donatur}/edit`)} 
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200" 
+                              title="Ubah"
+                            >
+                              <Edit className="w-4 h-4"/>
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteDonor(donor.id_donatur)}
+                              disabled={actionLoading}
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50" 
+                              title="Hapus Akun"
+                            >
+                              <Trash2 className="w-4 h-4"/>
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -291,7 +395,7 @@ export default function AdminVerificationDashboard() {
           </section>
         )}
 
-        {active === "penerima" && (
+        {!loading && active === "penerima" && (
           <section className="mt-5">
             <div className="mb-2 flex items-center gap-2">
               <span role="img" aria-label="recipient">👨‍👩‍👧‍👦</span>
@@ -302,40 +406,63 @@ export default function AdminVerificationDashboard() {
                 <thead className="bg-slate-100">
                   <tr className="text-left text-slate-700">
                     <th className="px-3 py-2">Nama</th>
-                    <th className="px-3 py-2">NIK</th>
+                    <th className="px-3 py-2">No. KK</th>
                     <th className="px-3 py-2">Alamat</th>
                     <th className="px-3 py-2">No. HP</th>
+                    <th className="px-3 py-2">Status</th>
                     <th className="px-3 py-2">Aksi</th>
                   </tr>
                 </thead>
-                {recipientsFiltered.length === 0 ? (
+                {recipients.length === 0 ? (
                   <tbody>
                     <tr>
-                      <td colSpan={5} className="px-4 py-6 text-center text-sm text-rose-700">
-                        <div className="inline-flex items-center gap-3 justify-center">
-                          <AlertTriangle className="w-5 h-5" />
-                          Tidak ada penerima yang cocok dengan pencarian Anda.
-                        </div>
+                      <td colSpan={6} className="px-4 py-6 text-center text-sm text-slate-600">
+                        Tidak ada data penerima.
                       </td>
                     </tr>
                   </tbody>
                 ) : (
                   <tbody className="divide-y divide-slate-200">
-                    {recipientsFiltered.map((r) => (
-                      <tr key={r.id}>
+                    {recipients.map((recipient) => (
+                      <tr key={recipient.id_penerima}>
                         <td className="px-3 py-2">
-                          <button type="button" onClick={() => navigate(`/admin/verifikasi/penerima/${r.id}`)} className="text-left text-emerald-700 hover:underline">{r.name}</button>
+                          <button 
+                            type="button" 
+                            onClick={() => navigate(`/admin/recipients/${recipient.id_penerima}`)} 
+                            className="text-left text-emerald-700 hover:underline"
+                          >
+                            {recipient.nama_kepala}
+                          </button>
                         </td>
-                        <td className="px-3 py-2">{r.nik}</td>
-                        <td className="px-3 py-2">{r.address}</td>
-                        <td className="px-3 py-2">{r.phone}</td>
+                        <td className="px-3 py-2">{recipient.no_kk}</td>
+                        <td className="px-3 py-2 text-xs">{recipient.alamat || '-'}</td>
+                        <td className="px-3 py-2">{recipient.nomor_telepon || '-'}</td>
+                        <td className="px-3 py-2">
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
+                            recipient.status_verifikasi === 'terverifikasi' ? 'bg-emerald-100 text-emerald-700' : 
+                            recipient.status_verifikasi === 'pending' ? 'bg-amber-100 text-amber-700' :
+                            'bg-red-100 text-red-700'
+                          }`}>
+                            {recipient.status_verifikasi}
+                          </span>
+                        </td>
                         <td className="px-3 py-2">
                           <div className="flex items-center gap-2">
-                            <button className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-emerald-700" title="Aktifkan"><Check className="w-4 h-4"/></button>
-                            <button className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-rose-100 text-rose-700" title="Nonaktifkan"><UserX className="w-4 h-4"/></button>
-                            <button className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-blue-700" title="Kirim Email"><Mail className="w-4 h-4"/></button>
-                            <button onClick={() => navigate(`/admin/verifikasi/penerima/${r.id}/edit`)} className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 text-amber-700" title="Ubah"><Edit className="w-4 h-4"/></button>
-                            <button onClick={() => setConfirmDelete({ entity: 'recipient', id: r.id, label: r.name })} className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-red-100 text-red-700" title="Hapus Akun"><Trash2 className="w-4 h-4"/></button>
+                            <button 
+                              onClick={() => navigate(`/admin/recipients/${recipient.id_penerima}/edit`)} 
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200" 
+                              title="Ubah"
+                            >
+                              <Edit className="w-4 h-4"/>
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteRecipient(recipient.id_penerima)}
+                              disabled={actionLoading}
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50" 
+                              title="Hapus Akun"
+                            >
+                              <Trash2 className="w-4 h-4"/>
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -345,30 +472,6 @@ export default function AdminVerificationDashboard() {
               </table>
             </div>
           </section>
-        )}
-        {/* Confirm Delete Modal */}
-        {confirmDelete && (
-          <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true">
-            <div className="w-full max-w-md rounded-xl bg-white shadow-lg">
-              <div className="flex items-center justify-between border-b px-4 py-3">
-                <div className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700"><AlertTriangle className="w-4 h-4 text-amber-500"/> Konfirmasi Penghapusan Akun</div>
-                <button onClick={() => setConfirmDelete(null)} className="text-slate-500 hover:text-slate-700" aria-label="Tutup"><X className="w-5 h-5"/></button>
-              </div>
-              <div className="px-4 py-3 text-sm text-slate-700 space-y-3">
-                <p>Apakah Anda yakin ingin menghapus akun ini? Tindakan ini akan menghapus seluruh data terkait pengguna dan tidak dapat dibatalkan.</p>
-                <p>Pastikan Anda telah meninjau data pengguna ini dengan benar sebelum melanjutkan.</p>
-                <div className="rounded-md bg-slate-50 border border-slate-200 px-3 py-2 text-xs text-slate-600">Akun: <span className="font-medium text-slate-800">{confirmDelete.label}</span></div>
-              </div>
-              <div className="flex justify-end gap-2 border-t px-4 py-3">
-                <button onClick={() => setConfirmDelete(null)} className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Batalkan</button>
-                <button onClick={() => {
-                  if (confirmDelete.entity === 'donor') setDonors((arr) => arr.filter((d) => d.id !== confirmDelete.id));
-                  if (confirmDelete.entity === 'recipient') setRecipients((arr) => arr.filter((r) => r.id !== confirmDelete.id));
-                  setConfirmDelete(null);
-                }} className="rounded-md bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700">Ya, Hapus</button>
-              </div>
-            </div>
-          </div>
         )}
       </div>
     </div>

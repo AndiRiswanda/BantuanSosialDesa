@@ -6,9 +6,38 @@ use App\Models\ProgramBantuan;
 use App\Models\KategoriBantuan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class DonorController extends Controller
 {
+    // Jadwal Penyaluran untuk Donatur
+    public function programSchedules(Request $request, $id)
+    {
+        $donatur = $request->user();
+        $program = $donatur->programBantuan()->findOrFail($id);
+
+        // Ambil semua penerima program beserta jadwal penyaluran
+        $recipients = $program->penerimaPrograms()->with(['penerima', 'transaksiPenyaluran'])->get();
+
+        // Kumpulkan semua jadwal penyaluran dari seluruh penerima program
+        $schedules = [];
+        foreach ($recipients as $pp) {
+            foreach ($pp->transaksiPenyaluran as $transaksi) {
+                $schedules[] = [
+                    'recipient' => $pp->penerima,
+                    'date' => $transaksi->tanggal_penyaluran ? $transaksi->tanggal_penyaluran->format('Y-m-d') : null,
+                    'time' => $transaksi->jam_penyaluran,
+                    'location' => $transaksi->lokasi_penyaluran,
+                    'status' => $transaksi->status_penyaluran,
+                ];
+            }
+        }
+
+        return response()->json([
+            'program' => $program->only(['id_program', 'nama_program']),
+            'schedules' => $schedules,
+        ]);
+    }
     public function dashboard(Request $request)
     {
         $donatur = $request->user();
@@ -150,7 +179,7 @@ class DonorController extends Controller
             'jumlah_bantuan' => $request->jumlah_bantuan,
             'kriteria_penerima' => $request->kriteria_penerima,
             'keterangan' => $keterangan, // Use the mapped value
-            'status' => 'aktif',
+            'status' => 'pending', // Program baru menunggu persetujuan admin
         ]);
 
         return response()->json([
@@ -169,13 +198,13 @@ class DonorController extends Controller
             'deskripsi' => 'nullable|string',
             'tanggal_selesai' => 'nullable|date',
             'jumlah_bantuan' => 'numeric|min:0',
-            'status' => 'in:aktif,selesai,ditunda',
+            'status' => 'in:pending,aktif,selesai,ditunda',
         ], [
             'nama_program.max' => 'Nama program maksimal 150 karakter.',
             'tanggal_selesai.date' => 'Format tanggal selesai tidak valid.',
             'jumlah_bantuan.numeric' => 'Jumlah bantuan harus berupa angka.',
             'jumlah_bantuan.min' => 'Jumlah bantuan tidak boleh negatif.',
-            'status.in' => 'Status harus salah satu dari: aktif, selesai, ditunda.',
+            'status.in' => 'Status harus salah satu dari: pending, aktif, selesai, ditunda.',
         ]);
 
         $program->update($request->all());
@@ -204,7 +233,7 @@ class DonorController extends Controller
             $donatur = $request->user();
             
             // Log incoming request
-            \Log::info('Update Profile Request', [
+            Log::info('Update Profile Request', [
                 'donor_id' => $donatur->id_donatur,
                 'request_data' => $request->all(),
             ]);
@@ -292,6 +321,76 @@ class DonorController extends Controller
         return response()->json([
             'message' => "Program '$programName' berhasil dihapus."
         ]);
+    }
+
+    public function uploadProof(Request $request, $id)
+    {
+        $donatur = $request->user();
+        $program = $donatur->programBantuan()->findOrFail($id);
+        
+        // Check if program is pending and money type
+        if ($program->status !== 'pending') {
+            return response()->json([
+                'message' => 'Bukti transfer hanya dapat diunggah untuk program yang berstatus pending.'
+            ], 400);
+        }
+        
+        if ($program->jenis_bantuan !== 'uang') {
+            return response()->json([
+                'message' => 'Bukti transfer hanya diperlukan untuk donasi berupa uang.'
+            ], 400);
+        }
+        
+        $request->validate([
+            'bukti_transfer' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120', // 5MB max
+        ], [
+            'bukti_transfer.required' => 'File bukti transfer harus diunggah.',
+            'bukti_transfer.file' => 'Bukti transfer harus berupa file.',
+            'bukti_transfer.mimes' => 'Bukti transfer harus berformat: jpg, jpeg, png, atau pdf.',
+            'bukti_transfer.max' => 'Ukuran file bukti transfer maksimal 5MB.',
+        ]);
+        
+        try {
+            // Store the file in public/storage/bukti_transfer
+            $file = $request->file('bukti_transfer');
+            $filename = time() . '_' . $program->id_program . '.' . $file->getClientOriginalExtension();
+            
+            // Ensure directory exists
+            $directory = storage_path('app/public/bukti_transfer');
+            if (!file_exists($directory)) {
+                mkdir($directory, 0755, true);
+            }
+            
+            $path = $file->storeAs('bukti_transfer', $filename, 'public');
+            
+            // Update program with file path
+            $program->bukti_transfer = '/storage/' . $path;
+            $program->save();
+            
+            Log::info('Bukti transfer uploaded', [
+                'program_id' => $program->id_program,
+                'donor_id' => $donatur->id_donatur,
+                'file_path' => $path
+            ]);
+            
+            return response()->json([
+                'message' => 'Bukti transfer berhasil diunggah.',
+                'program' => $program->fresh()
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Upload bukti transfer failed', [
+                'program_id' => $id,
+                'donor_id' => $donatur->id_donatur,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'message' => 'Gagal mengunggah bukti transfer.',
+                'error' => $e->getMessage() // Always show error for debugging
+            ], 500);
+        }
     }
 
     public function categories()
