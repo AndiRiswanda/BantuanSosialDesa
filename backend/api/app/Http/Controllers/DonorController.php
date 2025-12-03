@@ -115,9 +115,9 @@ class DonorController extends Controller
         $totalPenerima = $program->penerimaPrograms->count();
         $penerimaDisetujui = $program->penerimaPrograms->where('status_penerimaan', 'selesai')->count();
         
-        // Count tersalurkan (with transaksi)
+        // Count tersalurkan based on transactions with status 'selesai' (verified by admin)
         $totalTersalurkan = $program->penerimaPrograms->filter(function($pp) {
-            return $pp->transaksiPenyaluran && $pp->transaksiPenyaluran->count() > 0;
+            return $pp->transaksiPenyaluran && $pp->transaksiPenyaluran->where('status_penyaluran', 'selesai')->count() > 0;
         })->count();
         
         // Format response data untuk memastikan semua field terkirim
@@ -229,7 +229,7 @@ class DonorController extends Controller
     public function profile(Request $request)
     {
         $user = $request->user();
-        \Log::info('Profile Request', [
+        Log::info('Profile Request', [
             'user' => $user,
             'user_type' => get_class($user),
             'user_id' => $user ? $user->getKey() : null,
@@ -279,7 +279,7 @@ class DonorController extends Controller
             ]);
 
             // Log successful update
-            \Log::info('Donor Profile Updated Successfully', [
+            Log::info('Donor Profile Updated Successfully', [
                 'donor_id' => $donatur->id_donatur,
                 'updated_fields' => array_keys($validated),
             ]);
@@ -294,14 +294,14 @@ class DonorController extends Controller
             
         } catch (\Illuminate\Validation\ValidationException $e) {
             // Log validation errors
-            \Log::warning('Profile Update Validation Failed', [
+            Log::warning('Profile Update Validation Failed', [
                 'errors' => $e->errors(),
             ]);
             throw $e; // Re-throw to return 422 response
             
         } catch (\Exception $e) {
             // Log unexpected errors
-            \Log::error('Profile Update Failed', [
+            Log::error('Profile Update Failed', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);

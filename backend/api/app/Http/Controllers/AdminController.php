@@ -4,14 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\Donatur;
 use App\Models\Penerima;
-use App\Models\ProgramBantuan;
-use App\Models\PenerimaProgram;
-use App\Models\TransaksiPenyaluran;
-use App\Models\KategoriBantuan;
-use App\Models\LaporanTransparansi;
-use App\Models\DokumentasiProgram;
 use Illuminate\Http\Request;
+use App\Models\ProgramBantuan;
+use App\Models\KategoriBantuan;
+use App\Models\PenerimaProgram;
+use App\Models\DokumentasiProgram;
 use Illuminate\Support\Facades\DB;
+use App\Models\LaporanTransparansi;
+use App\Models\TransaksiPenyaluran;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
@@ -133,19 +134,29 @@ class AdminController extends Controller
 
         // Add statistics for each program
         $programs->getCollection()->transform(function($program) {
-            $totalPenerima = $program->penerimaPrograms()->count();
-            $menunggu = $program->penerimaPrograms()->where('status_penerimaan', 'menunggu')->count();
-            $selesai = $program->penerimaPrograms()->where('status_penerimaan', 'selesai')->count();
+            // Load penerimaPrograms with transaksiPenyaluran relationship
+            $program->load('penerimaPrograms.transaksiPenyaluran');
+            
+            $totalPenerima = $program->penerimaPrograms->count();
+            
+            // Count tersalurkan based on transactions with status 'selesai' (verified by admin)
+            $tersalurkan = $program->penerimaPrograms->filter(function($pp) {
+                return $pp->transaksiPenyaluran && 
+                       $pp->transaksiPenyaluran->where('status_penyaluran', 'selesai')->count() > 0;
+            })->count();
+            
+            $belumTersalurkan = $totalPenerima - $tersalurkan;
+            
             $totalDisalurkan = TransaksiPenyaluran::whereHas('penerimaProgram', function($q) use ($program) {
                 $q->where('id_program', $program->id_program);
-            })->sum('jumlah_diterima');
+            })->where('status_penyaluran', 'selesai')->sum('jumlah_diterima');
 
             $program->statistics = [
                 'total_penerima' => $totalPenerima,
-                'penerima_menunggu' => $menunggu,
-                'penerima_selesai' => $selesai,
+                'total_tersalurkan' => $tersalurkan,
+                'total_belum_tersalurkan' => $belumTersalurkan,
                 'total_disalurkan' => $totalDisalurkan,
-                'persentase_selesai' => $totalPenerima > 0 ? round(($selesai / $totalPenerima) * 100, 2) : 0,
+                'persentase_selesai' => $totalPenerima > 0 ? round(($tersalurkan / $totalPenerima) * 100, 2) : 0,
             ];
 
             return $program;
@@ -329,31 +340,100 @@ class AdminController extends Controller
 
     public function programDetail($id)
     {
-        $program = ProgramBantuan::with(['kategori', 'donatur', 'penerimaPrograms.penerima'])
-            ->findOrFail($id);
+        $program = ProgramBantuan::with([
+            'kategori', 
+            'donatur', 
+            'penerimaPrograms.penerima',
+            'penerimaPrograms.transaksiPenyaluran'
+        ])->findOrFail($id);
         
-        // Add statistics
-        $totalPenerima = $program->penerimaPrograms()->count();
-        $menunggu = $program->penerimaPrograms()->where('status_penerimaan', 'menunggu')->count();
-        $selesai = $program->penerimaPrograms()->where('status_penerimaan', 'selesai')->count();
+        // Add statistics - count based on verified transactions (status_penyaluran = 'selesai')
+        $totalPenerima = $program->penerimaPrograms->count();
+        
+        // Count tersalurkan based on transactions with status 'selesai' (verified by admin)
+        $totalTersalurkan = $program->penerimaPrograms->filter(function($pp) {
+            return $pp->transaksiPenyaluran && $pp->transaksiPenyaluran->where('status_penyaluran', 'selesai')->count() > 0;
+        })->count();
+        
+        $totalBelumTersalurkan = $totalPenerima - $totalTersalurkan;
+        
         $totalDisalurkan = TransaksiPenyaluran::whereHas('penerimaProgram', function($q) use ($program) {
             $q->where('id_program', $program->id_program);
         })->sum('jumlah_diterima');
 
         $program->statistics = [
             'total_penerima' => $totalPenerima,
-            'penerima_menunggu' => $menunggu,
-            'penerima_selesai' => $selesai,
+            'total_tersalurkan' => $totalTersalurkan,
+            'total_belum_tersalurkan' => $totalBelumTersalurkan,
+            'penerima_menunggu' => $totalBelumTersalurkan, // Alias for backward compatibility
+            'penerima_selesai' => $totalTersalurkan, // Alias for backward compatibility
             'total_disalurkan' => $totalDisalurkan,
-            'persentase_selesai' => $totalPenerima > 0 ? round(($selesai / $totalPenerima) * 100, 2) : 0,
+            'persentase_selesai' => $totalPenerima > 0 ? round(($totalTersalurkan / $totalPenerima) * 100, 2) : 0,
         ];
         
         // Add recipients alias for easier access
         $program->recipients = $program->penerimaPrograms;
 
+        // Get schedules with automatic status calculation
+        $allTransactions = TransaksiPenyaluran::whereHas('penerimaProgram', function($q) use ($id) {
+            $q->where('id_program', $id);
+        })
+        ->orderBy('tanggal_penyaluran')
+        ->orderBy('jam_penyaluran')
+        ->get()
+        ->groupBy(function($item) {
+            return $item->tanggal_penyaluran->format('Y-m-d') . '|' . $item->jam_penyaluran . '|' . $item->lokasi_penyaluran . '|' . $item->catatan;
+        });
+
+        $schedules = $allTransactions->map(function($group) {
+            $first = $group->first();
+            
+            // Check if all recipients in this schedule have completed
+            $allCompleted = $group->every(function($transaction) {
+                return $transaction->status_penyaluran === 'selesai';
+            });
+            
+            // Check if schedule date has passed
+            $scheduleDatetime = \Carbon\Carbon::parse($first->tanggal_penyaluran->format('Y-m-d') . ' ' . $first->jam_penyaluran);
+            $isPast = $scheduleDatetime->isPast();
+            
+            // Status is 'selesai' if all recipients completed OR date has passed
+            $scheduleStatus = ($allCompleted || $isPast) ? 'selesai' : 'dijadwalkan';
+            
+            return [
+                'id' => $first->id_transaksi,
+                'tanggal_penyaluran' => $first->tanggal_penyaluran->format('Y-m-d'),
+                'jam_penyaluran' => $first->jam_penyaluran,
+                'lokasi_penyaluran' => $first->lokasi_penyaluran,
+                'catatan' => $first->catatan,
+                'status' => $scheduleStatus,
+                'jumlah_penerima' => $group->count(),
+            ];
+        })->values();
+
+        // Get dokumentasi
+        $dokumentasi = DokumentasiProgram::where('id_program', $id)
+            ->latest()
+            ->get()
+            ->map(function($doc) {
+                return [
+                    'id' => $doc->id_dokumentasi,
+                    'judul' => $doc->judul,
+                    'deskripsi' => $doc->deskripsi,
+                    'file_name' => $doc->file_name,
+                    'file_path' => asset('storage/' . $doc->file_path),
+                    'file_type' => $doc->file_type,
+                    'file_size' => $doc->file_size,
+                    'tanggal_upload' => $doc->tanggal_upload->format('d M Y'),
+                    'uploaded_by' => 'Admin',
+                ];
+            });
+
         return response()->json([
             'success' => true,
             'data' => $program,
+            'schedules' => $schedules,
+            'dokumentasi' => $dokumentasi,
         ]);
     }
 
@@ -1260,13 +1340,13 @@ class AdminController extends Controller
     public function saveScheduleAndActivateProgram(Request $request, $id)
     {
         try {
-            \Log::info('=== SAVING SCHEDULE ===');
-            \Log::info('Program ID: ' . $id);
-            \Log::info('Request data: ', $request->all());
-            \Log::info('User: ', ['id' => $request->user()->id_admin, 'username' => $request->user()->username]);
+            Log::info('=== SAVING SCHEDULE ===');
+            Log::info('Program ID: ' . $id);
+            Log::info('Request data: ', $request->all());
+            Log::info('User: ', ['id' => $request->user()->id_admin, 'username' => $request->user()->username]);
             
             $program = ProgramBantuan::findOrFail($id);
-            \Log::info('Program found: ' . $program->nama_program);
+            Log::info('Program found: ' . $program->nama_program);
             
             $validated = $request->validate([
                 'meta' => 'required|array',
@@ -1284,10 +1364,10 @@ class AdminController extends Controller
                 'stages.*.recipients.*' => 'required|integer|exists:penerima,id_penerima',
             ]);
             
-            \Log::info('Validation passed');
+            Log::info('Validation passed');
 
             DB::beginTransaction();
-            \Log::info('Transaction started');
+            Log::info('Transaction started');
 
             // Update program metadata
             $program->update([
@@ -1297,18 +1377,24 @@ class AdminController extends Controller
                 'keterangan' => $validated['meta']['criteria'],
                 'status' => 'aktif', // Activate the program
             ]);
-            \Log::info('Program updated to aktif status');
+            Log::info('Program updated to aktif status');
 
             // Create penerima_program records and schedule transactions
             $stageCount = 0;
             $recipientCount = 0;
-            foreach ($validated['stages'] as $stage) {
+            foreach ($validated['stages'] as $stageIndex => $stage) {
                 $stageCount++;
-                \Log::info('Processing stage ' . $stageCount . ': ' . $stage['date'] . ' ' . $stage['time']);
+                $stageNumber = $stageIndex + 1; // Tahap 1, 2, 3, etc.
+                Log::info('Processing stage ' . $stageNumber . ': ' . $stage['date'] . ' ' . $stage['time']);
+                
+                // Format catatan dengan prefix "Tahap X: "
+                $catatan = $stage['note'] 
+                    ? "Tahap {$stageNumber}: " . $stage['note'] 
+                    : "Tahap {$stageNumber}";
                 
                 foreach ($stage['recipients'] as $recipientId) {
                     $recipientCount++;
-                    \Log::info('Processing recipient ' . $recipientId);
+                    Log::info('Processing recipient ' . $recipientId);
                     
                     // Create penerima_program record if not exists
                     $penerimaProgram = PenerimaProgram::firstOrCreate([
@@ -1320,7 +1406,7 @@ class AdminController extends Controller
                         'created_by' => $request->user()->id_admin,
                     ]);
                     
-                    \Log::info('PenerimaProgram created/found: ' . $penerimaProgram->id_penerima_program);
+                    Log::info('PenerimaProgram created/found: ' . $penerimaProgram->id_penerima_program);
 
                     // Create transaction schedule
                     $transaction = TransaksiPenyaluran::create([
@@ -1332,16 +1418,16 @@ class AdminController extends Controller
                             ($program->jumlah_bantuan / $this->getTotalRecipientsCount($validated['stages'])) : 1,
                         'metode_penyaluran' => $program->jenis_bantuan === 'uang' ? 'transfer' : 'barang',
                         'status_penyaluran' => 'dijadwalkan',
-                        'catatan' => $stage['note'],
+                        'catatan' => $catatan,
                     ]);
                     
-                    \Log::info('Transaction created: ' . $transaction->id_transaksi);
+                    Log::info('Transaction created: ' . $transaction->id_transaksi);
                 }
             }
 
-            \Log::info('All stages and recipients processed. Stages: ' . $stageCount . ', Recipients: ' . $recipientCount);
+            Log::info('All stages and recipients processed. Stages: ' . $stageCount . ', Recipients: ' . $recipientCount);
             DB::commit();
-            \Log::info('Transaction committed successfully');
+            Log::info('Transaction committed successfully');
 
             return response()->json([
                 'success' => true,
@@ -1351,7 +1437,7 @@ class AdminController extends Controller
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             DB::rollback();
-            \Log::error('Validation failed: ', $e->errors());
+            Log::error('Validation failed: ', $e->errors());
             
             return response()->json([
                 'success' => false,
@@ -1361,8 +1447,8 @@ class AdminController extends Controller
             
         } catch (\Exception $e) {
             DB::rollback();
-            \Log::error('Error saving schedule: ' . $e->getMessage());
-            \Log::error('Stack trace: ' . $e->getTraceAsString());
+            Log::error('Error saving schedule: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
             
             return response()->json([
                 'success' => false,
@@ -1397,11 +1483,26 @@ class AdminController extends Controller
                 $first = $group->first();
                 $keyParts = explode('-', $key);
                 
+                // Calculate status based on:
+                // 1. All recipients are completed (status = 'selesai')
+                // 2. OR date has passed (compared to current date/time)
+                $allCompleted = $group->every(function($transaction) {
+                    return $transaction->status_penyaluran === 'selesai';
+                });
+                
+                // Check if schedule date has passed
+                $scheduleDatetime = \Carbon\Carbon::parse($first->tanggal_penyaluran->format('Y-m-d') . ' ' . $first->jam_penyaluran);
+                $isPast = $scheduleDatetime->isPast();
+                
+                // Status is "selesai" if all recipients completed OR date has passed
+                $scheduleStatus = ($allCompleted || $isPast) ? 'selesai' : 'dijadwalkan';
+                
                 return [
                     'date' => $first->tanggal_penyaluran->format('Y-m-d'),
                     'time' => $first->jam_penyaluran,
                     'location' => $first->lokasi_penyaluran,
                     'note' => $first->catatan,
+                    'status' => $scheduleStatus,
                     'recipients' => $group->map(function($transaction) {
                         return [
                             'id' => $transaction->penerimaProgram->penerima->id_penerima,

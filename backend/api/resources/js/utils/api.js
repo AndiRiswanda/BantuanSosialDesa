@@ -365,6 +365,11 @@ export const adminAPI = {
   
   // Schedules
   getSchedules: (id) => apiFetch(`/api/admin/programs/${id}/schedules`),
+  updateTransaksiPenyaluran: (id, data) =>
+    apiFetch(`/api/admin/transaksi/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
   
   // Categories
   getCategories: (params = {}) => {

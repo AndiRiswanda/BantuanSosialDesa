@@ -275,29 +275,64 @@ export default function AdminDistributionVerify() {
         }
       } catch (dokError) {
         console.error('Error loading dokumentasi:', dokError);
-        // Don't fail the whole page if dokumentasi fails
         setDokumentasi([]);
       }
 
-      // Load schedules - gunakan endpoint yang sesuai
-      // const scheduleResponse = await adminAPI.getSchedules(id);
-      // Mock schedules untuk sementara
-      setSchedules([
-        { date: "3 Oktober 2025", location: "Kantor Desa", time: "08:00 - 11:00\n14:00 - 16:00", note: "Tahap 1", recipients: 20, status: "Selesai" },
-        { date: "3 November 2025", location: "Kantor Desa", time: "08:00 - 11:00\n14:00 - 16:00", note: "Tahap 2", recipients: 40, status: "Terjadwal" },
-        { date: "3 Desember 2025", location: "Kantor Desa", time: "08:00 - 11:00\n14:00 - 16:00", note: "Tahap 3", recipients: 40, status: "Terjadwal" },
-      ]);
-
-      // Mock recipients untuk sementara
-      const mockRecipients = Array.from({ length: 50 }).map((_, i) => ({
-        id: i + 1,
-        kk: `3174-45${String(i + 1).padStart(4, "0")}`,
-        name: ["Ahmad Yani", "Siti Aminah", "Ratna Dewi", "Joko Susilo", "Siti Nurhayati"][i % 5] + ` ${Math.floor(i / 5) + 1}`,
-        address: `Jl. Mawar No. ${i + 10}, RT 0${(i % 4) + 1}/0${(i % 3) + 1}`,
-        tahap: (i % 3) + 1,
-        status: i % 7 === 0 ? "Selesai" : "Menunggu",
-      }));
-      setRecipients(mockRecipients);
+      // Load schedules from API
+      try {
+        const scheduleResponse = await adminAPI.getSchedules(id);
+        if (scheduleResponse.success && scheduleResponse.schedules) {
+          // Format schedules for display
+          const formattedSchedules = scheduleResponse.schedules.map(schedule => {
+            const dateObj = new Date(schedule.date);
+            const formattedDate = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+            
+            // Use status from backend (already calculated based on recipients and date)
+            const status = schedule.status === 'selesai' ? 'Selesai' : 'Terjadwal';
+            
+            return {
+              date: formattedDate,
+              location: schedule.location || '-',
+              time: schedule.time || '-',
+              note: schedule.note || '-',
+              recipients: schedule.total_recipients || 0,
+              status: status,
+              recipientsData: schedule.recipients || []
+            };
+          });
+          setSchedules(formattedSchedules);
+          
+          // Extract all recipients from schedules
+          const allRecipients = [];
+          scheduleResponse.schedules.forEach((schedule, scheduleIdx) => {
+            schedule.recipients.forEach(recipient => {
+              // Extract tahap number from schedule.note (e.g., "Tahap 1", "Tahap 2 Ya", etc.)
+              // Look for pattern "Tahap X" where X is a number
+              const tahapMatch = schedule.note?.match(/[Tt]ahap\s*(\d+)/);
+              const tahapNumber = tahapMatch ? parseInt(tahapMatch[1]) : scheduleIdx + 1;
+              
+              allRecipients.push({
+                id: recipient.id,
+                transaction_id: recipient.transaction_id,
+                kk: recipient.kk,
+                name: recipient.name,
+                address: recipient.address,
+                tahap: tahapNumber, // Store as number for filtering
+                tahapLabel: schedule.note || `Tahap ${scheduleIdx + 1}`, // Display label
+                status: recipient.status === 'selesai' ? 'Selesai' : 'Menunggu',
+              });
+            });
+          });
+          setRecipients(allRecipients);
+        } else {
+          setSchedules([]);
+          setRecipients([]);
+        }
+      } catch (schedError) {
+        console.error('Error loading schedules:', schedError);
+        setSchedules([]);
+        setRecipients([]);
+      }
       
     } catch (err) {
       console.error("Error loading program data:", err);
@@ -307,8 +342,28 @@ export default function AdminDistributionVerify() {
     }
   };
 
+  const handleStatusChange = async (transactionId, newStatus) => {
+    try {
+      const response = await adminAPI.updateTransaksiPenyaluran(transactionId, {
+        status_penyaluran: newStatus
+      });
+      
+      if (response.success) {
+        // Reload data to reflect changes
+        await loadProgramData();
+        alert(`Status berhasil diubah menjadi ${newStatus === 'selesai' ? 'Selesai' : 'Menunggu'}`);
+      } else {
+        alert('Gagal mengubah status: ' + (response.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+      alert('Terjadi kesalahan saat mengubah status');
+    }
+  };
+
   const filtered = recipients.filter((r) => {
-    const byTahap = !tahap || r.tahap === tahap;
+    // Filter by tahap number (1, 2, 3, etc.)
+    const byTahap = tahap === 0 || r.tahap === tahap;
     const q = query.trim().toLowerCase();
     const bySearch = !q || r.name.toLowerCase().includes(q) || r.kk.includes(q) || r.address.toLowerCase().includes(q);
     return byTahap && bySearch;
@@ -536,9 +591,18 @@ export default function AdminDistributionVerify() {
                       <td className="px-3 py-2 whitespace-nowrap">{r.kk}</td>
                       <td className="px-3 py-2">{r.name}</td>
                       <td className="px-3 py-2">{r.address}</td>
-                      <td className="px-3 py-2">Tahap {r.tahap}</td>
+                      <td className="px-3 py-2">{r.tahapLabel || `Tahap ${r.tahap}`}</td>
                       <td className="px-3 py-2">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${r.status==="Selesai"?"bg-emerald-100 text-emerald-700":"bg-amber-100 text-amber-800"}`}>{r.status}</span>
+                        <button
+                          onClick={() => handleStatusChange(r.transaction_id, r.status === 'Selesai' ? 'dijadwalkan' : 'selesai')}
+                          className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                            r.status === "Selesai" 
+                              ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-300" 
+                              : "bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-300"
+                          }`}
+                        >
+                          {r.status}
+                        </button>
                       </td>
                     </tr>
                   ))}

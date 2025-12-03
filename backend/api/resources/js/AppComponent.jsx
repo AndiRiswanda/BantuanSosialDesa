@@ -105,8 +105,12 @@ function App() {
             <Route path="/admin/verifikasi" element={<ProtectedRoute allowedTypes={['admin']}><AdminVerificationDashboard /></ProtectedRoute>} />
             <Route path="/admin/verifikasi/donatur/:id" element={<ProtectedRoute allowedTypes={['admin']}><AdminDonorDetail /></ProtectedRoute>} />
             <Route path="/admin/verifikasi/donatur/:id/edit" element={<ProtectedRoute allowedTypes={['admin']}><AdminDonorEdit /></ProtectedRoute>} />
+            <Route path="/admin/donors/:id" element={<ProtectedRoute allowedTypes={['admin']}><AdminDonorDetail /></ProtectedRoute>} />
+            <Route path="/admin/donors/:id/edit" element={<ProtectedRoute allowedTypes={['admin']}><AdminDonorEdit /></ProtectedRoute>} />
             <Route path="/admin/verifikasi/penerima/:id" element={<ProtectedRoute allowedTypes={['admin']}><AdminRecipientDetail /></ProtectedRoute>} />
             <Route path="/admin/verifikasi/penerima/:id/edit" element={<ProtectedRoute allowedTypes={['admin']}><AdminRecipientEdit /></ProtectedRoute>} />
+            <Route path="/admin/recipients/:id" element={<ProtectedRoute allowedTypes={['admin']}><AdminRecipientDetail /></ProtectedRoute>} />
+            <Route path="/admin/recipients/:id/edit" element={<ProtectedRoute allowedTypes={['admin']}><AdminRecipientEdit /></ProtectedRoute>} />
             <Route path="/admin/profil" element={<ProtectedRoute allowedTypes={['admin']}><AdminProfile /></ProtectedRoute>} />
             <Route path="/admin/profil/edit" element={<ProtectedRoute allowedTypes={['admin']}><AdminProfileEdit /></ProtectedRoute>} />
           </Routes>

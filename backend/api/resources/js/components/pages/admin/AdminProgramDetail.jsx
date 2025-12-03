@@ -21,6 +21,8 @@ export default function AdminProgramDetail() {
   const navigate = useNavigate();
   const [tab, setTab] = useState("DETAIL");
   const [program, setProgram] = useState(null);
+  const [schedules, setSchedules] = useState([]);
+  const [dokumentasi, setDokumentasi] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -36,6 +38,8 @@ export default function AdminProgramDetail() {
       
       if (response.success && response.data) {
         setProgram(response.data);
+        setSchedules(response.schedules || []);
+        setDokumentasi(response.dokumentasi || []);
       }
     } catch (err) {
       console.error("Error loading program detail:", err);
@@ -71,7 +75,17 @@ export default function AdminProgramDetail() {
   const calculateProgress = () => {
     if (!program?.statistics) return 0;
     if (program.statistics.total_penerima === 0) return 0;
-    return Math.round((program.statistics.penerima_selesai / program.statistics.total_penerima) * 100);
+    const tersalurkan = program.statistics.total_tersalurkan || 0;
+    return Math.round((tersalurkan / program.statistics.total_penerima) * 100);
+  };
+
+  const getStatusPenyaluran = (penerimaProgram) => {
+    // Check if there's any transaction with status 'selesai'
+    if (penerimaProgram.transaksi_penyaluran && penerimaProgram.transaksi_penyaluran.length > 0) {
+      const hasSelesai = penerimaProgram.transaksi_penyaluran.some(t => t.status_penyaluran === 'selesai');
+      if (hasSelesai) return { status: 'selesai', label: 'Selesai', color: 'green' };
+    }
+    return { status: 'menunggu', label: 'Menunggu', color: 'yellow' };
   };
 
   if (loading) {
@@ -159,7 +173,7 @@ export default function AdminProgramDetail() {
         <div className="mt-4 rounded-2xl border border-slate-200 p-4 shadow-sm">
           <div className="flex items-center justify-between text-sm font-semibold text-slate-700">
             <span>Progress Penyaluran</span>
-            <span>{progress}% ({program.statistics?.penerima_selesai || 0}/{program.statistics?.total_penerima || 0})</span>
+            <span>{progress}% ({program.statistics?.total_tersalurkan || 0}/{program.statistics?.total_penerima || 0})</span>
           </div>
           <div className="mt-2 h-2 rounded-full bg-slate-200 overflow-hidden">
             <div className="h-2 bg-blue-600 rounded-full transition-all" style={{ width: `${progress}%` }} />
@@ -286,8 +300,8 @@ export default function AdminProgramDetail() {
                 <div className="space-y-1">
                   <div>Periode: {formatDate(program.tanggal_mulai)} - {formatDate(program.tanggal_selesai)}</div>
                   <div>Total Penerima: {program.statistics?.total_penerima || 0} orang</div>
-                  <div>Sudah Tersalurkan: {program.statistics?.penerima_selesai || 0} orang</div>
-                  <div>Belum Tersalurkan: {program.statistics?.penerima_menunggu || 0} orang</div>
+                  <div>Sudah Tersalurkan: {program.statistics?.total_tersalurkan || 0} orang</div>
+                  <div>Belum Tersalurkan: {program.statistics?.total_belum_tersalurkan || 0} orang</div>
                 </div>
               </div>
             </div>
@@ -311,19 +325,22 @@ export default function AdminProgramDetail() {
                     </tr>
                   </thead>
                   <tbody>
-                    {recipients.map((r, i) => (
-                      <tr key={r.id_penerima_program} className="border-b last:border-b-0">
-                        <td className="px-3 py-3 align-top border-l border-slate-200">{i + 1}</td>
-                        <td className="px-3 py-3 align-top">{r.penerima?.no_kk || '-'}</td>
-                        <td className="px-3 py-3 align-top">{r.penerima?.nama_kepala || '-'}</td>
-                        <td className="px-3 py-3 align-top">{r.penerima?.alamat || '-'}</td>
-                        <td className="px-3 py-3 align-top border-r border-slate-200">
-                          <StatusPill color={r.status_penerimaan === 'selesai' ? 'green' : 'yellow'}>
-                            {r.status_penerimaan === 'selesai' ? 'Selesai' : 'Menunggu'}
-                          </StatusPill>
-                        </td>
-                      </tr>
-                    ))}
+                    {recipients.map((r, i) => {
+                      const statusInfo = getStatusPenyaluran(r);
+                      return (
+                        <tr key={r.id_penerima_program} className="border-b last:border-b-0">
+                          <td className="px-3 py-3 align-top border-l border-slate-200">{i + 1}</td>
+                          <td className="px-3 py-3 align-top">{r.penerima?.no_kk || '-'}</td>
+                          <td className="px-3 py-3 align-top">{r.penerima?.nama_kepala || '-'}</td>
+                          <td className="px-3 py-3 align-top">{r.penerima?.alamat || '-'}</td>
+                          <td className="px-3 py-3 align-top border-r border-slate-200">
+                            <StatusPill color={statusInfo.color}>
+                              {statusInfo.label}
+                            </StatusPill>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -335,16 +352,49 @@ export default function AdminProgramDetail() {
 
         {tab === "DOCS" && (
           <div className="mt-4 rounded-2xl border border-slate-200 p-4 md:p-5 shadow-sm">
-            <div className="flex items-center gap-2 font-semibold text-[#0B2B5E]">
-              <ImageIcon className="w-4 h-4"/> Dokumentasi
+            <div className="flex items-center gap-2 font-semibold text-[#0B2B5E] mb-3">
+              <ImageIcon className="w-4 h-4"/> Dokumentasi Penyaluran
             </div>
-            <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="aspect-square rounded-xl border border-slate-300 bg-slate-100 flex items-center justify-center">
-                  <ImageIcon className="w-14 h-14 text-slate-400"/>
-                </div>
-              ))}
-            </div>
+            {dokumentasi.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {dokumentasi.map((doc) => (
+                  <div key={doc.id} className="border border-slate-200 rounded-xl overflow-hidden hover:shadow-lg transition-shadow">
+                    {doc.file_type?.startsWith('image/') ? (
+                      <img src={doc.file_path} alt={doc.judul} className="w-full h-48 object-cover" />
+                    ) : (
+                      <div className="w-full h-48 bg-slate-100 flex items-center justify-center">
+                        <div className="text-center">
+                          <div className="text-5xl mb-2">📄</div>
+                          <p className="text-xs text-slate-600 font-medium">{doc.file_type || 'Document'}</p>
+                        </div>
+                      </div>
+                    )}
+                    <div className="p-3">
+                      <h4 className="font-semibold text-slate-800 text-sm mb-1 line-clamp-2">{doc.judul}</h4>
+                      {doc.deskripsi && <p className="text-xs text-slate-600 mb-2 line-clamp-2">{doc.deskripsi}</p>}
+                      <div className="flex items-center justify-between text-xs text-slate-500 mb-3">
+                        <span>{doc.tanggal_upload}</span>
+                        <span>{(doc.file_size / 1024).toFixed(0)} KB</span>
+                      </div>
+                      <a 
+                        href={doc.file_path} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="block w-full px-3 py-2 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 text-center transition-colors"
+                      >
+                        Lihat Dokumentasi
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 text-slate-600">
+                <ImageIcon className="w-16 h-16 mx-auto text-slate-300 mb-3" />
+                <p className="font-medium">Belum ada dokumentasi</p>
+                <p className="text-sm text-slate-500 mt-1">Dokumentasi penyaluran akan ditampilkan di sini</p>
+              </div>
+            )}
           </div>
         )}
       </div>

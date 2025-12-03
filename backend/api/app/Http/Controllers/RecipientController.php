@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Http\Request;
 use App\Models\ProgramBantuan;
 use App\Models\PenerimaProgram;
 use App\Models\DokumenVerifikasi;
-use App\Models\TransaksiPenyaluran;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Models\TransaksiPenyaluran;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class RecipientController extends Controller
@@ -97,7 +98,11 @@ class RecipientController extends Controller
     public function programs(Request $request)
     {
         $query = ProgramBantuan::where('status', 'aktif')
-            ->with(['kategori', 'donatur']);
+            ->with([
+                'kategori', 
+                'donatur',
+                'penerimaPrograms.transaksiPenyaluran'
+            ]);
 
         if ($request->has('kategori') && $request->kategori != '') {
             $query->where('id_kategori', $request->kategori);
@@ -120,10 +125,15 @@ class RecipientController extends Controller
                 ->where('status_penerimaan', 'selesai')
                 ->exists();
             
-            // Calculate progress
-            $totalPenerima = $program->penerimaPrograms()->count();
-            $selesai = $program->penerimaPrograms()->where('status_penerimaan', 'selesai')->count();
-            $progress = $totalPenerima > 0 ? round(($selesai / $totalPenerima) * 100) : 0;
+            // Calculate progress based on verified transactions (status_penyaluran = 'selesai')
+            $totalPenerima = $program->penerimaPrograms->count();
+            
+            // Count tersalurkan based on transactions with status 'selesai' (verified by admin)
+            $tersalurkan = $program->penerimaPrograms->filter(function($pp) {
+                return $pp->transaksiPenyaluran && $pp->transaksiPenyaluran->where('status_penyaluran', 'selesai')->count() > 0;
+            })->count();
+            
+            $progress = $totalPenerima > 0 ? round(($tersalurkan / $totalPenerima) * 100) : 0;
             
             return [
                 'id' => $program->id_program,
@@ -142,7 +152,7 @@ class RecipientController extends Controller
                 'description' => $program->keterangan,
                 'status' => ucfirst($program->status),
                 'progress' => $progress,
-                'progress_note' => "$selesai dari $totalPenerima penerima",
+                'progress_note' => "$tersalurkan dari $totalPenerima penerima",
                 'received' => $received,
             ];
         });
@@ -155,34 +165,64 @@ class RecipientController extends Controller
 
     public function programDetail(Request $request, $id)
     {
-        $program = ProgramBantuan::with(['kategori', 'donatur', 'penerimaPrograms.penerima'])
-            ->findOrFail($id);
+        $program = ProgramBantuan::with([
+            'kategori', 
+            'donatur', 
+            'penerimaPrograms.penerima',
+            'penerimaPrograms.transaksiPenyaluran'
+        ])->findOrFail($id);
 
         $penerima = $request->user();
         $hasApplied = $penerima->penerimaPrograms()
             ->where('id_program', $id)
             ->exists();
 
-        // Get statistics
-        $totalPenerima = $program->penerimaPrograms()->count();
-        $penerimaSelesai = $program->penerimaPrograms()->where('status_penerimaan', 'selesai')->count();
+        // Get statistics - count based on verified transactions (status_penyaluran = 'selesai')
+        $totalPenerima = $program->penerimaPrograms->count();
         
-        // Get schedules
-        $schedules = TransaksiPenyaluran::whereHas('penerimaProgram', function($q) use ($id) {
+        // Count tersalurkan based on transactions with status 'selesai' (verified by admin)
+        $totalTersalurkan = $program->penerimaPrograms->filter(function($pp) {
+            return $pp->transaksiPenyaluran && $pp->transaksiPenyaluran->where('status_penyaluran', 'selesai')->count() > 0;
+        })->count();
+        
+        $totalBelumTersalurkan = $totalPenerima - $totalTersalurkan;
+        
+        // Get schedules - get unique schedules for this program based on date, time, and location
+        // Group by date, time, location to calculate status properly
+        $allTransactions = TransaksiPenyaluran::whereHas('penerimaProgram', function($q) use ($id) {
             $q->where('id_program', $id);
         })
         ->orderBy('tanggal_penyaluran')
+        ->orderBy('jam_penyaluran')
         ->get()
-        ->map(function($transaksi) {
-            return [
-                'id' => $transaksi->id_transaksi,
-                'tanggal_penyaluran' => $transaksi->tanggal_penyaluran,
-                'waktu_penyaluran' => $transaksi->jam_penyaluran,
-                'lokasi_penyaluran' => $transaksi->lokasi_penyaluran,
-                'keterangan' => $transaksi->catatan,
-                'status_penyaluran' => $transaksi->status_penyaluran,
-            ];
+        ->groupBy(function($item) {
+            return $item->tanggal_penyaluran->format('Y-m-d') . '|' . $item->jam_penyaluran . '|' . $item->lokasi_penyaluran . '|' . $item->catatan;
         });
+
+        $schedules = $allTransactions->map(function($group) {
+            $first = $group->first();
+            
+            // Check if all recipients in this schedule have completed
+            $allCompleted = $group->every(function($transaction) {
+                return $transaction->status_penyaluran === 'selesai';
+            });
+            
+            // Check if schedule date has passed
+            $scheduleDatetime = \Carbon\Carbon::parse($first->tanggal_penyaluran->format('Y-m-d') . ' ' . $first->jam_penyaluran);
+            $isPast = $scheduleDatetime->isPast();
+            
+            // Status is 'selesai' if all recipients completed OR date has passed
+            $scheduleStatus = ($allCompleted || $isPast) ? 'selesai' : 'dijadwalkan';
+            
+            return [
+                'id' => $first->id_transaksi,
+                'tanggal_penyaluran' => $first->tanggal_penyaluran,
+                'waktu_penyaluran' => $first->jam_penyaluran,
+                'lokasi_penyaluran' => $first->lokasi_penyaluran,
+                'keterangan' => $first->catatan,
+                'status_penyaluran' => $scheduleStatus,
+            ];
+        })->values(); // Re-index array
 
         // Get recipients
         $recipients = $program->penerimaPrograms->map(function($pp) {
@@ -195,6 +235,7 @@ class RecipientController extends Controller
                 'alamat' => $pp->penerima->alamat,
                 'status' => $pp->status_penerimaan,
                 'status_penerimaan' => $pp->status_penerimaan,
+                'transaksi_penyaluran' => $pp->transaksiPenyaluran,
             ];
         });
 
@@ -223,7 +264,9 @@ class RecipientController extends Controller
                 ],
                 'statistics' => [
                     'total_penerima' => $totalPenerima,
-                    'penerima_selesai' => $penerimaSelesai,
+                    'total_tersalurkan' => $totalTersalurkan,
+                    'total_belum_tersalurkan' => $totalBelumTersalurkan,
+                    'penerima_selesai' => $totalTersalurkan, // Alias for backward compatibility
                 ],
                 'schedules' => $schedules,
                 'recipients' => $recipients,
@@ -412,7 +455,7 @@ class RecipientController extends Controller
         $penerima = $request->user();
         
         // Log incoming data for debugging
-        \Log::info('Submit Application Request', [
+        Log::info('Submit Application Request', [
             'all_data' => $request->all(),
             'files' => $request->allFiles(),
         ]);
