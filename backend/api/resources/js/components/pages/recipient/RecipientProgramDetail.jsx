@@ -114,15 +114,25 @@ export default function RecipientProgramDetail() {
     return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
   };
 
-  // Calculate progress
+  // Calculate progress - use same logic as AdminProgramDetail
   const calculateProgress = () => {
     if (!program || !program.statistics) return { progress: 0, note: '0/0 Penerima' };
-    const { total_penerima, penerima_selesai } = program.statistics;
-    const progress = total_penerima > 0 ? Math.round((penerima_selesai / total_penerima) * 100) : 0;
+    const { total_penerima, total_tersalurkan, penerima_selesai } = program.statistics;
+    const tersalurkan = total_tersalurkan || penerima_selesai || 0;
+    const progress = total_penerima > 0 ? Math.round((tersalurkan / total_penerima) * 100) : 0;
     return {
       progress,
-      note: `${penerima_selesai}/${total_penerima} Penerima`
+      note: `${tersalurkan}/${total_penerima} Penerima`
     };
+  };
+
+  const getStatusPenyaluran = (recipient) => {
+    // Check if there's any transaction with status 'selesai'
+    if (recipient.transaksi_penyaluran && recipient.transaksi_penyaluran.length > 0) {
+      const hasSelesai = recipient.transaksi_penyaluran.some(t => t.status_penyaluran === 'selesai');
+      if (hasSelesai) return 'selesai';
+    }
+    return 'menunggu';
   };
 
   if (loading) {
@@ -344,25 +354,28 @@ export default function RecipientProgramDetail() {
                         </tr>
                       </thead>
                       <tbody>
-                        {program.recipients.map((recipient, idx) => (
-                          <tr key={recipient.id || idx} className="border-b last:border-0">
-                            <td className="px-3 py-2 whitespace-nowrap">{idx + 1}</td>
-                            <td className="px-3 py-2 whitespace-nowrap">{maskKK(recipient.no_kk || recipient.kk)}</td>
-                            <td className="px-3 py-2 whitespace-nowrap">{recipient.nama || recipient.nama_lengkap}</td>
-                            <td className="px-3 py-2">{recipient.alamat}</td>
-                            <td className="px-3 py-2 whitespace-nowrap">
-                              {recipient.status_penerimaan === "selesai" || recipient.status === "selesai" ? (
-                                <Pill className="bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                  <Check className="w-3.5 h-3.5" /> Selesai
-                                </Pill>
-                              ) : (
-                                <Pill className="bg-amber-100 text-amber-800 border border-amber-200">
-                                  <Clock4 className="w-3.5 h-3.5" /> Menunggu
-                                </Pill>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
+                        {program.recipients.map((recipient, idx) => {
+                          const status = getStatusPenyaluran(recipient);
+                          return (
+                            <tr key={recipient.id || idx} className="border-b last:border-0">
+                              <td className="px-3 py-2 whitespace-nowrap">{idx + 1}</td>
+                              <td className="px-3 py-2 whitespace-nowrap">{maskKK(recipient.no_kk || recipient.kk)}</td>
+                              <td className="px-3 py-2 whitespace-nowrap">{recipient.nama || recipient.nama_lengkap}</td>
+                              <td className="px-3 py-2">{recipient.alamat}</td>
+                              <td className="px-3 py-2 whitespace-nowrap">
+                                {status === "selesai" ? (
+                                  <Pill className="bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                    <Check className="w-3.5 h-3.5" /> Selesai
+                                  </Pill>
+                                ) : (
+                                  <Pill className="bg-amber-100 text-amber-800 border border-amber-200">
+                                    <Clock4 className="w-3.5 h-3.5" /> Menunggu
+                                  </Pill>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>

@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import NavbarAdmin from "../../layout/NavbarAdmin";
@@ -72,7 +73,7 @@ function ScheduledCard({ item, onDetail }) {
           <span className="text-sm text-slate-700 font-semibold">
             {safeProgress.toFixed(0)}% 
             <span className="text-slate-500 font-normal">
-              ({item.statistics?.penerima_selesai || 0}/{item.statistics?.total_penerima || 0} penerima)
+              ({item.statistics?.total_tersalurkan || 0}/{item.statistics?.total_penerima || 0} penerima)
             </span>
           </span>
         </div>

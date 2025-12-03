@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import { useState, useEffect } from "react";
 import { Search } from "lucide-react";
 import api from "../../utils/api";

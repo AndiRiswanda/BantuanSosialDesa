@@ -397,6 +397,21 @@ export default function AdminVerificationDashboard() {
                           >
                             <ThumbsDown className="w-4 h-4" /> Tolak
                           </button>
+                          <button 
+                            onClick={() => navigate(`/admin/recipients/${recipient.id_penerima}/edit`)} 
+                            className="inline-flex items-center gap-2 rounded-md bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700"
+                            title="Edit Data"
+                          >
+                            <Edit className="w-4 h-4" /> Edit
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteRecipient(recipient.id_penerima)}
+                            disabled={actionLoading}
+                            className="inline-flex items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                            title="Hapus Akun"
+                          >
+                            <Trash2 className="w-4 h-4" /> Hapus
+                          </button>
                         </div>
                       </div>
                     </div>

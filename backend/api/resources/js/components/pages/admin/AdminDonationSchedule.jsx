@@ -1,3 +1,4 @@
+// eslint-disable-next-line no-unused-vars
 import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import NavbarAdmin from "../../layout/NavbarAdmin";
@@ -142,11 +143,30 @@ function RecipientPickerModal({ open, onClose, onSave, initialSelected = [] }) {
       });
       
       console.log('API Response:', response);
+      console.log('Response success:', response.success);
+      console.log('Response data:', response.data);
       
-      if (response.success) {
-        // Laravel paginated response structure: response.data is the pagination object, response.data.data is the array
-        const recipients = response.data.data || [];
+      if (response.success || response.data) {
+        // Handle both response formats:
+        // 1. {success: true, data: {data: [], ...}} - paginated
+        // 2. {success: true, data: [...]} - direct array
+        let recipients = [];
+        
+        if (response.data) {
+          if (Array.isArray(response.data)) {
+            // Direct array
+            recipients = response.data;
+          } else if (response.data.data && Array.isArray(response.data.data)) {
+            // Paginated response
+            recipients = response.data.data;
+          } else if (Array.isArray(response.data.recipients)) {
+            // Alternative structure
+            recipients = response.data.recipients;
+          }
+        }
+        
         console.log('Recipients loaded:', recipients.length);
+        console.log('Sample recipient:', recipients[0]);
         setAllRecipients(recipients);
       }
     } catch (error) {
@@ -418,7 +438,8 @@ export default function AdminDonationSchedule() {
     if (id) {
       fetchProgramDetails();
     }
-  }, [id]); // Re-run when ID changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
   const fetchProgramDetails = async () => {
     setLoading(true);

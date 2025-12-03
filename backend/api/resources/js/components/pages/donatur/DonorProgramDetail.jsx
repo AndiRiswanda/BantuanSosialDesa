@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import NavbarDonatur from "../../layout/NavbarDonatur";
 import { ArrowLeft, CalendarDays, Layers, Package, BadgeDollarSign, Users, Image as ImageIcon, FileText, Upload } from "lucide-react";
 import api from "../../../services/api";
+import { donorAPI } from "../../../utils/api";
 
 const StatusPill = ({ color = "slate", children }) => {
   const map = {
@@ -122,6 +123,15 @@ export default function DonorProgramDetail() {
     if (!statistics) return 0;
     if (statistics.total_penerima === 0) return 0;
     return Math.round((statistics.total_tersalurkan / statistics.total_penerima) * 100);
+  };
+
+  const getStatusPenyaluran = (penerimaProgram) => {
+    // Check if there's any transaction with status 'selesai'
+    if (penerimaProgram.transaksi_penyaluran && penerimaProgram.transaksi_penyaluran.length > 0) {
+      const hasSelesai = penerimaProgram.transaksi_penyaluran.some(t => t.status_penyaluran === 'selesai');
+      if (hasSelesai) return { status: 'selesai', label: 'Selesai', color: 'green' };
+    }
+    return { status: 'menunggu', label: 'Menunggu', color: 'yellow' };
   };
 
   // Loading state
@@ -363,19 +373,22 @@ export default function DonorProgramDetail() {
                     </tr>
                   </thead>
                   <tbody>
-                    {recipients.map((r, i) => (
-                      <tr key={r.id_penerima_program} className="border-b last:border-b-0">
-                        <td className="px-3 py-3 align-top border-l border-slate-200">{i + 1}</td>
-                        <td className="px-3 py-3 align-top">{r.penerima?.no_kk || '-'}</td>
-                        <td className="px-3 py-3 align-top">{r.penerima?.nama_kepala || '-'}</td>
-                        <td className="px-3 py-3 align-top">{r.penerima?.alamat || '-'}</td>
-                        <td className="px-3 py-3 align-top border-r border-slate-200">
-                          <StatusPill color={r.status_penerimaan === 'selesai' ? 'green' : r.status_penerimaan === 'proses' ? 'blue' : 'yellow'}>
-                            {r.status_penerimaan === 'selesai' ? 'Selesai' : r.status_penerimaan === 'proses' ? 'Proses' : 'Menunggu'}
-                          </StatusPill>
-                        </td>
-                      </tr>
-                    ))}
+                    {recipients.map((r, i) => {
+                      const statusInfo = getStatusPenyaluran(r);
+                      return (
+                        <tr key={r.id_penerima_program} className="border-b last:border-b-0">
+                          <td className="px-3 py-3 align-top border-l border-slate-200">{i + 1}</td>
+                          <td className="px-3 py-3 align-top">{r.penerima?.no_kk || '-'}</td>
+                          <td className="px-3 py-3 align-top">{r.penerima?.nama_kepala || '-'}</td>
+                          <td className="px-3 py-3 align-top">{r.penerima?.alamat || '-'}</td>
+                          <td className="px-3 py-3 align-top border-r border-slate-200">
+                            <StatusPill color={statusInfo.color}>
+                              {statusInfo.label}
+                            </StatusPill>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
