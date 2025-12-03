@@ -265,6 +265,8 @@ export const donorAPI = {
     
     return data;
   },
+
+  getDokumentasiProgram: (id) => apiFetch(`/api/programs/${id}/dokumentasi`),
 };
 
 // Recipient APIs
@@ -290,6 +292,37 @@ export const recipientAPI = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
+
+  submitApplication: async (formData) => {
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/recipient/submit-application`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+        // Don't set Content-Type, let browser set it for multipart/form-data
+      },
+      body: formData, // FormData object with files
+    });
+
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      throw new Error('Server response is not JSON');
+    }
+
+    const data = await response.json();
+    
+    if (!response.ok) {
+      // Create error object with response data for better error handling
+      const error = new Error(data.message || 'Data yang dikirim tidak valid.');
+      error.response = { data };
+      throw error;
+    }
+
+    return data;
+  },
+
+  getDokumentasiProgram: (id) => apiFetch(`/api/programs/${id}/dokumentasi`),
 };
 
 // Admin APIs
@@ -329,6 +362,9 @@ export const adminAPI = {
     apiFetch(`/api/admin/programs/${id}`, {
       method: 'DELETE',
     }),
+  
+  // Schedules
+  getSchedules: (id) => apiFetch(`/api/admin/programs/${id}/schedules`),
   
   // Categories
   getCategories: (params = {}) => {
@@ -481,6 +517,31 @@ export const adminAPI = {
     apiFetch('/api/admin/change-password', {
       method: 'POST',
       body: JSON.stringify(data),
+    }),
+
+  // Dokumentasi
+  uploadDokumentasi: async (formData) => {
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/admin/dokumentasi`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+      },
+      body: formData,
+    });
+    
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      throw new Error('Server returned non-JSON response');
+    }
+    
+    return response.json();
+  },
+  getDokumentasiProgram: (programId) => apiFetch(`/api/programs/${programId}/dokumentasi`),
+  deleteDokumentasi: (id) =>
+    apiFetch(`/api/admin/dokumentasi/${id}`, {
+      method: 'DELETE',
     }),
 };
 

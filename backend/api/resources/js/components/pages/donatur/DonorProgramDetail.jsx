@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import NavbarDonatur from "../../layout/NavbarDonatur";
-import { ArrowLeft, CalendarDays, Layers, Package, BadgeDollarSign, Users, Image as ImageIcon, FileText } from "lucide-react";
+import { ArrowLeft, CalendarDays, Layers, Package, BadgeDollarSign, Users, Image as ImageIcon, FileText, Upload } from "lucide-react";
 import api from "../../../services/api";
 
 const StatusPill = ({ color = "slate", children }) => {
@@ -24,6 +24,8 @@ export default function DonorProgramDetail() {
   const [statistics, setStatistics] = useState(null);
   const [recipients, setRecipients] = useState([]);
   const [recipientsFetched, setRecipientsFetched] = useState(false);
+  const [dokumentasi, setDokumentasi] = useState([]);
+  const [dokumentasiFetched, setDokumentasiFetched] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -58,6 +60,19 @@ export default function DonorProgramDetail() {
     }
   }, [id]);
 
+  const fetchDokumentasi = useCallback(async () => {
+    try {
+      console.log('[DEBUG] Fetching dokumentasi for program:', id);
+      const response = await donorAPI.getDokumentasiProgram(id);
+      console.log('[DEBUG] Dokumentasi response:', response);
+      setDokumentasi(response.data || []);
+      setDokumentasiFetched(true);
+    } catch (error) {
+      console.error('Error fetching dokumentasi:', error);
+      setDokumentasiFetched(true);
+    }
+  }, [id]);
+
   useEffect(() => {
     fetchProgramDetail();
   }, [fetchProgramDetail]);
@@ -71,7 +86,12 @@ export default function DonorProgramDetail() {
       console.log('[DEBUG] Triggering fetchRecipients...');
       fetchRecipients();
     }
-  }, [tab, fetchRecipients, recipientsFetched, recipients.length]);
+    
+    if (tab === "DOCS" && !dokumentasiFetched) {
+      console.log('[DEBUG] Triggering fetchDokumentasi...');
+      fetchDokumentasi();
+    }
+  }, [tab, fetchRecipients, recipientsFetched, recipients.length, fetchDokumentasi, dokumentasiFetched]);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('id-ID', {
@@ -368,15 +388,48 @@ export default function DonorProgramDetail() {
         {tab === "DOCS" && (
           <div className="mt-4 rounded-2xl border border-slate-200 p-4 md:p-5 shadow-sm">
             <div className="flex items-center gap-2 font-semibold text-[#0B2B5E]">
-              <ImageIcon className="w-4 h-4"/> Dokumentasi
+              <ImageIcon className="w-4 h-4"/> Dokumentasi Penyaluran
             </div>
-            <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="aspect-square rounded-xl border border-slate-300 bg-slate-100 flex items-center justify-center">
-                  <ImageIcon className="w-14 h-14 text-slate-400"/>
-                </div>
-              ))}
-            </div>
+            {dokumentasi.length === 0 ? (
+              <div className="mt-4 text-center py-12 text-slate-600">
+                <Upload className="w-16 h-16 mx-auto text-slate-300 mb-3" />
+                <p className="font-medium">Belum ada dokumentasi</p>
+                <p className="text-sm text-slate-500 mt-1">Dokumentasi penyaluran akan ditampilkan di sini</p>
+              </div>
+            ) : (
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {dokumentasi.map((doc) => (
+                  <div key={doc.id} className="border border-slate-200 rounded-xl overflow-hidden hover:shadow-lg transition-shadow">
+                    {doc.file_type?.startsWith('image/') ? (
+                      <img src={doc.file_path} alt={doc.judul} className="w-full h-48 object-cover" />
+                    ) : (
+                      <div className="w-full h-48 bg-slate-100 flex items-center justify-center">
+                        <div className="text-center">
+                          <div className="text-5xl mb-2">📄</div>
+                          <p className="text-xs text-slate-600 font-medium">{doc.file_type || 'Document'}</p>
+                        </div>
+                      </div>
+                    )}
+                    <div className="p-3">
+                      <h4 className="font-semibold text-slate-800 text-sm mb-1 line-clamp-2">{doc.judul}</h4>
+                      {doc.deskripsi && <p className="text-xs text-slate-600 mb-2 line-clamp-2">{doc.deskripsi}</p>}
+                      <div className="flex items-center justify-between text-xs text-slate-500 mb-3">
+                        <span>{doc.tanggal_upload}</span>
+                        <span>{(doc.file_size / 1024).toFixed(0)} KB</span>
+                      </div>
+                      <a 
+                        href={doc.file_path} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="block w-full px-3 py-2 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 text-center transition-colors"
+                      >
+                        Lihat Dokumentasi
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

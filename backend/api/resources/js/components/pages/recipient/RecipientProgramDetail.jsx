@@ -31,6 +31,11 @@ export default function RecipientProgramDetail() {
   const navigate = useNavigate();
   const [tab, setTab] = useState("detail"); // detail | jadwal | penerima | dokumentasi
   const [currentUserKK, setCurrentUserKK] = useState(null);
+  const [program, setProgram] = useState(null);
+  const [dokumentasi, setDokumentasi] = useState([]);
+  const [dokumentasiFetched, setDokumentasiFetched] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // Fetch current user's No. KK
   useEffect(() => {
@@ -47,6 +52,47 @@ export default function RecipientProgramDetail() {
     fetchUserProfile();
   }, []);
 
+  // Fetch dokumentasi
+  useEffect(() => {
+    const fetchDokumentasi = async () => {
+      if (tab === "dokumentasi" && !dokumentasiFetched) {
+        try {
+          const response = await recipientAPI.getDokumentasiProgram(id);
+          if (response.success) {
+            setDokumentasi(response.data || []);
+          }
+          setDokumentasiFetched(true);
+        } catch (error) {
+          console.error('Error fetching dokumentasi:', error);
+          setDokumentasiFetched(true);
+        }
+      }
+    };
+    fetchDokumentasi();
+  }, [tab, id, dokumentasiFetched]);
+
+  // Fetch program detail
+  useEffect(() => {
+    const fetchProgramDetail = async () => {
+      try {
+        setLoading(true);
+        const response = await recipientAPI.getProgramDetail(id);
+        if (response.success) {
+          setProgram(response.data);
+        }
+      } catch (err) {
+        console.error('Error fetching program detail:', err);
+        setError(err.message || 'Gagal memuat detail program');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    if (id) {
+      fetchProgramDetail();
+    }
+  }, [id]);
+
   // Function to mask KK number if it's not the current user's
   const maskKK = (kk) => {
     if (!kk) return "N/A";
@@ -61,71 +107,59 @@ export default function RecipientProgramDetail() {
     return kk;
   };
 
-  // Mock program data; replace with API later
-  const program = useMemo(
-    () => ({
-      id: Number(id) || 1,
-      title: "Pemberdayaan Ibu Rumah Tangga melalui Kebun Sayur",
-      donor: "Yayasan Peduli Negeri",
-      status: "Terjadwal",
-      categories: ["Barang", "Pangan & Sembako"],
-      start: "1 Oktober 2025",
-      end: "30 Desember 2025",
-      progress: 20,
-      progressNote: "20/100 KK",
-      goods: "Bibit, polybag, pupuk organik",
-      schedules: [
-        { tanggal: "3 Oktober 2025", lokasi: "Kantor Desa", jam: ["08:00 - 11:00", "14:00 - 16:00"], ket: "Tahap 1", penerima: 20, status: "Selesai" },
-        { tanggal: "3 November 2025", lokasi: "Kantor Desa", jam: ["08:00 - 11:00", "14:00 - 16:00"], ket: "Tahap 2", penerima: 40, status: "Terjadwal" },
-        { tanggal: "3 Desember 2025", lokasi: "Kantor Desa", jam: ["08:00 - 11:00", "14:00 - 16:00"], ket: "Tahap 3", penerima: 40, status: "Terjadwal" },
-      ],
-      recipients: Array.from({ length: 10 }).map((_, i) => ({
-        no: i + 1,
-        kk: [
-          "3601012501250001", // Ahmad Dahlan
-          "3601012501250002", // Siti Aminah
-          "3601012501250003", // Budi Santoso
-          "3601012501250004", // Ratna Dewi
-          "3601012501250005", // Joko Widodo
-          "3601012501250006", // Dewi Lestari
-          "3601012501250007", // Agus Salim
-          "3601012501250008", // Nur Halimah
-          "3601012501250009", // Rina Susanti
-          "3601012501250010", // Hendra Wijaya
-        ][i],
-        nama: [
-          "Ahmad Dahlan",
-          "Siti Aminah",
-          "Budi Santoso",
-          "Ratna Dewi",
-          "Joko Widodo",
-          "Dewi Lestari",
-          "Agus Salim",
-          "Nur Halimah",
-          "Rina Susanti",
-          "Hendra Wijaya",
-        ][i],
-        alamat: [
-          "Jl. Merdeka No. 10, RT 01/02",
-          "Jl. Mawar 3, RT 02/03",
-          "Jl. Kenanga No. 5, RT 03/04",
-          "Jl. Anggrek No. 13, RT 01/02",
-          "Jl. Kemiri 5, RT 03/01",
-          "Jl. Merpati 11, RT 04/02",
-          "Jl. Flamboyan 8, RT 03/02",
-          "Jl. Pelita 1, RT 01/02",
-          "Jl. Dahlia 7, RT 02/01",
-          "Jl. Kebon 9, RT 02/03",
-        ][i],
-        tahap: "Tahap 1",
-        status: "Selesai",
-      })),
-      images: Array.from({ length: 6 }).map((_, i) => `https://placehold.co/400x300?text=Dokumentasi+${i + 1}`),
-    }),
-    [id]
-  );
+  // Format date
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+  };
 
-  const safeProgress = Math.min(100, Math.max(0, program.progress));
+  // Calculate progress
+  const calculateProgress = () => {
+    if (!program || !program.statistics) return { progress: 0, note: '0/0 Penerima' };
+    const { total_penerima, penerima_selesai } = program.statistics;
+    const progress = total_penerima > 0 ? Math.round((penerima_selesai / total_penerima) * 100) : 0;
+    return {
+      progress,
+      note: `${penerima_selesai}/${total_penerima} Penerima`
+    };
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-[#E6EFFA]">
+        <NavbarRecipient />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
+            <p className="mt-4 text-slate-600">Memuat detail program...</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (error || !program) {
+    return (
+      <div className="min-h-screen flex flex-col bg-[#E6EFFA]">
+        <NavbarRecipient />
+        <main className="flex-1 flex items-center justify-center p-4">
+          <div className="text-center">
+            <p className="text-red-600 mb-4">{error || 'Program tidak ditemukan'}</p>
+            <button
+              onClick={() => navigate('/penerima/program')}
+              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+            >
+              Kembali ke Daftar Program
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  const progressData = calculateProgress();
+  const safeProgress = Math.min(100, Math.max(0, progressData.progress));
 
   return (
     <div className="min-h-screen flex flex-col bg-[#E6EFFA]">
@@ -147,13 +181,26 @@ export default function RecipientProgramDetail() {
             </div>
 
             <div className="mt-4">
-              <h2 className="text-slate-900 font-semibold">{program.title}</h2>
-              <p className="text-xs text-slate-600 mt-1">Program ini mengajak ibu rumah tangga menanam sayuran organik di pekarangan rumah sebagai sumber tambahan pangan dan penghasilan.</p>
+              <h2 className="text-slate-900 font-semibold">{program.nama_program}</h2>
+              <p className="text-xs text-slate-600 mt-1">{program.deskripsi || 'Tidak ada deskripsi'}</p>
               <div className="mt-3 flex flex-wrap items-center gap-2">
-                {program.categories.map((c) => (
-                  <Pill key={c} className="bg-blue-50 text-blue-700 border border-blue-200">{c}</Pill>
-                ))}
-                <Pill className="ml-auto bg-amber-100 text-amber-800">{program.status}</Pill>
+                <Pill className="bg-blue-50 text-blue-700 border border-blue-200">
+                  {program.jenis_bantuan === 'uang' ? 'Uang' : 'Barang'}
+                </Pill>
+                <Pill className="bg-blue-50 text-blue-700 border border-blue-200">
+                  {program.kategori?.nama_kategori || 'Tidak ada kategori'}
+                </Pill>
+                <Pill className={`ml-auto ${
+                  program.status === 'aktif' ? 'bg-emerald-100 text-emerald-800' :
+                  program.status === 'pending' ? 'bg-amber-100 text-amber-800' :
+                  program.status === 'selesai' ? 'bg-blue-100 text-blue-800' :
+                  'bg-slate-100 text-slate-800'
+                }`}>
+                  {program.status === 'aktif' ? 'Aktif' :
+                   program.status === 'pending' ? 'Pending' :
+                   program.status === 'selesai' ? 'Selesai' :
+                   program.status}
+                </Pill>
               </div>
             </div>
           </section>
@@ -162,7 +209,7 @@ export default function RecipientProgramDetail() {
           <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
             <div className="flex items-center justify-between text-sm font-medium text-slate-800">
               <span>Progress Penyaluran</span>
-              <span>{safeProgress}% <span className="text-slate-500 font-normal">({program.progressNote})</span></span>
+              <span>{safeProgress}% <span className="text-slate-500 font-normal">({progressData.note})</span></span>
             </div>
             <div className="mt-2 h-2 w-full rounded-full bg-slate-200">
               <div className="h-2 rounded-full bg-emerald-600" style={{ width: `${safeProgress}%` }} />
@@ -191,33 +238,41 @@ export default function RecipientProgramDetail() {
                     <label className="text-xs text-slate-600">Tanggal Dimulai</label>
                     <div className="mt-1 flex items-center gap-2 rounded-md border border-slate-300 px-2 py-2 text-sm bg-white">
                       <Calendar className="w-4 h-4 text-slate-500" />
-                      <input value={program.start} readOnly className="w-full outline-none" />
+                      <input value={formatDate(program.tanggal_mulai)} readOnly className="w-full outline-none" />
                     </div>
                   </div>
                   <div>
                     <label className="text-xs text-slate-600">Tanggal Selesai</label>
                     <div className="mt-1 flex items-center gap-2 rounded-md border border-slate-300 px-2 py-2 text-sm bg-white">
                       <Calendar className="w-4 h-4 text-slate-500" />
-                      <input value={program.end} readOnly className="w-full outline-none" />
+                      <input value={formatDate(program.tanggal_selesai)} readOnly className="w-full outline-none" />
                     </div>
                   </div>
                 </div>
               </div>
 
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <p className="text-sm font-semibold text-slate-800 mb-1">Jumlah Donasi</p>
-                <p className="text-xs text-slate-700">Barang (bibit, polybag, pupuk organik)</p>
+                <p className="text-sm font-semibold text-slate-800 mb-1">Jumlah Bantuan</p>
+                <p className="text-xs text-slate-700">
+                  {program.jenis_bantuan === 'uang' 
+                    ? `Rp ${Number(program.jumlah_bantuan || 0).toLocaleString('id-ID')}`
+                    : program.deskripsi_bantuan || 'Bantuan berupa barang'}
+                </p>
               </div>
 
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-                <p className="text-sm font-semibold text-slate-800">Kriteria Penerima Donasi</p>
-                <p className="text-xs text-slate-700 mt-1">Ibu rumah tangga tidak memiliki penghasilan tetap yang memiliki lahan pekarangan minimal 2×2 meter serta tanggungan keluarga lebih dari 2 orang</p>
-              </div>
+              {program.kriteria_penerima && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                  <p className="text-sm font-semibold text-slate-800">Kriteria Penerima Bantuan</p>
+                  <p className="text-xs text-slate-700 mt-1">{program.kriteria_penerima}</p>
+                </div>
+              )}
 
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <p className="text-sm font-semibold text-slate-800">Keterangan Penerima Donasi</p>
-                <p className="text-xs text-slate-700 mt-1">Penerima diutamakan ibu rumah tangga dengan kondisi ekonomi menengah ke bawah yang ingin memulai kebun sayur mandiri di rumahnya.</p>
-              </div>
+              {program.keterangan_tambahan && (
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-sm font-semibold text-slate-800">Keterangan Tambahan</p>
+                  <p className="text-xs text-slate-700 mt-1">{program.keterangan_tambahan}</p>
+                </div>
+              )}
             </section>
           )}
 
@@ -226,43 +281,47 @@ export default function RecipientProgramDetail() {
               <div className="flex items-center gap-2 text-slate-800 font-semibold mb-3">
                 <Calendar className="w-4 h-4" /> Jadwal Penyaluran Bantuan
               </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="bg-emerald-50 text-slate-800">
-                      <th className="px-3 py-2 text-left rounded-l-lg">Tanggal</th>
-                      <th className="px-3 py-2 text-left">Lokasi Penyebaran</th>
-                      <th className="px-3 py-2 text-left">Jam Pengambilan</th>
-                      <th className="px-3 py-2 text-left">Keterangan</th>
-                      <th className="px-3 py-2 text-left">Penerima</th>
-                      <th className="px-3 py-2 text-left rounded-r-lg">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {program.schedules.map((row, idx) => (
-                      <tr key={idx} className="border-b last:border-0">
-                        <td className="px-3 py-2 whitespace-nowrap">{row.tanggal}</td>
-                        <td className="px-3 py-2 whitespace-nowrap">{row.lokasi}</td>
-                        <td className="px-3 py-2">
-                          <div className="flex flex-col">
-                            <span>{row.jam[0]}</span>
-                            <span>{row.jam[1]}</span>
-                          </div>
-                        </td>
-                        <td className="px-3 py-2 whitespace-nowrap">{row.ket}</td>
-                        <td className="px-3 py-2 whitespace-nowrap">{row.penerima}</td>
-                        <td className="px-3 py-2 whitespace-nowrap">
-                          {row.status === "Selesai" ? (
-                            <Pill className="bg-emerald-100 text-emerald-800 border border-emerald-200"><Check className="w-3.5 h-3.5" /> Selesai</Pill>
-                          ) : (
-                            <Pill className="bg-amber-100 text-amber-800 border border-amber-200"><Clock4 className="w-3.5 h-3.5" /> Terjadwal</Pill>
-                          )}
-                        </td>
+              {program.schedules && program.schedules.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead>
+                      <tr className="bg-emerald-50 text-slate-800">
+                        <th className="px-3 py-2 text-left rounded-l-lg">Tanggal</th>
+                        <th className="px-3 py-2 text-left">Lokasi Penyaluran</th>
+                        <th className="px-3 py-2 text-left">Jam</th>
+                        <th className="px-3 py-2 text-left">Keterangan</th>
+                        <th className="px-3 py-2 text-left rounded-r-lg">Status</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {program.schedules.map((schedule, idx) => (
+                        <tr key={schedule.id || idx} className="border-b last:border-0">
+                          <td className="px-3 py-2 whitespace-nowrap">{formatDate(schedule.tanggal_penyaluran)}</td>
+                          <td className="px-3 py-2">{schedule.lokasi_penyaluran || '-'}</td>
+                          <td className="px-3 py-2 whitespace-nowrap">{schedule.waktu_penyaluran || '-'}</td>
+                          <td className="px-3 py-2">{schedule.keterangan || '-'}</td>
+                          <td className="px-3 py-2 whitespace-nowrap">
+                            {schedule.status_penyaluran === "selesai" ? (
+                              <Pill className="bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                <Check className="w-3.5 h-3.5" /> Selesai
+                              </Pill>
+                            ) : (
+                              <Pill className="bg-amber-100 text-amber-800 border border-amber-200">
+                                <Clock4 className="w-3.5 h-3.5" /> Terjadwal
+                              </Pill>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-slate-500">
+                  <Calendar className="w-12 h-12 mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">Belum ada jadwal penyaluran</p>
+                </div>
+              )}
             </section>
           )}
 
@@ -271,61 +330,97 @@ export default function RecipientProgramDetail() {
               <div className="flex items-center gap-2 text-slate-800 font-semibold mb-3">
                 <Users2 className="w-4 h-4" /> Daftar Penerima Bantuan
               </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="bg-emerald-50 text-slate-800">
-                      <th className="px-3 py-2 text-left rounded-l-lg">No</th>
-                      <th className="px-3 py-2 text-left">No. KK</th>
-                      <th className="px-3 py-2 text-left">Nama Penerima</th>
-                      <th className="px-3 py-2 text-left">Alamat</th>
-                      <th className="px-3 py-2 text-left">Penyaluran</th>
-                      <th className="px-3 py-2 text-left rounded-r-lg">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {program.recipients.map((r) => (
-                      <tr key={r.no} className="border-b last:border-0">
-                        <td className="px-3 py-2 whitespace-nowrap">{r.no}</td>
-                        <td className="px-3 py-2 whitespace-nowrap">{maskKK(r.kk)}</td>
-                        <td className="px-3 py-2 whitespace-nowrap">{r.nama}</td>
-                        <td className="px-3 py-2 whitespace-nowrap">{r.alamat}</td>
-                        <td className="px-3 py-2 whitespace-nowrap">{r.tahap}</td>
-                        <td className="px-3 py-2 whitespace-nowrap">
-                          <Pill className="bg-emerald-100 text-emerald-800 border border-emerald-200"><Check className="w-3.5 h-3.5" /> Selesai</Pill>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Pagination mock */}
-              <div className="mt-4 flex items-center justify-center gap-3">
-                <button className="w-7 h-7 rounded-full border border-slate-300 bg-white hover:bg-slate-50">‹</button>
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: 9 }).map((_, i) => (
-                    <span key={i} className={`w-2 h-2 rounded-full ${i === 0 ? "bg-emerald-600" : "bg-slate-300"}`} />
-                  ))}
+              {program.recipients && program.recipients.length > 0 ? (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead>
+                        <tr className="bg-emerald-50 text-slate-800">
+                          <th className="px-3 py-2 text-left rounded-l-lg">No</th>
+                          <th className="px-3 py-2 text-left">No. KK</th>
+                          <th className="px-3 py-2 text-left">Nama Penerima</th>
+                          <th className="px-3 py-2 text-left">Alamat</th>
+                          <th className="px-3 py-2 text-left rounded-r-lg">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {program.recipients.map((recipient, idx) => (
+                          <tr key={recipient.id || idx} className="border-b last:border-0">
+                            <td className="px-3 py-2 whitespace-nowrap">{idx + 1}</td>
+                            <td className="px-3 py-2 whitespace-nowrap">{maskKK(recipient.no_kk || recipient.kk)}</td>
+                            <td className="px-3 py-2 whitespace-nowrap">{recipient.nama || recipient.nama_lengkap}</td>
+                            <td className="px-3 py-2">{recipient.alamat}</td>
+                            <td className="px-3 py-2 whitespace-nowrap">
+                              {recipient.status_penerimaan === "selesai" || recipient.status === "selesai" ? (
+                                <Pill className="bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                  <Check className="w-3.5 h-3.5" /> Selesai
+                                </Pill>
+                              ) : (
+                                <Pill className="bg-amber-100 text-amber-800 border border-amber-200">
+                                  <Clock4 className="w-3.5 h-3.5" /> Menunggu
+                                </Pill>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-8 text-slate-500">
+                  <Users2 className="w-12 h-12 mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">Belum ada penerima bantuan</p>
                 </div>
-                <button className="w-7 h-7 rounded-full border border-slate-300 bg-white hover:bg-slate-50">›</button>
-              </div>
+              )}
             </section>
           )}
 
           {tab === "dokumentasi" && (
             <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 sm:p-4">
               <div className="flex items-center gap-2 text-slate-800 font-semibold mb-3">
-                <ImageIcon className="w-4 h-4" /> Dokumentasi
+                <ImageIcon className="w-4 h-4" /> Dokumentasi Penyaluran
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {program.images.map((src, i) => (
-                  <div key={i} className="aspect-[4/3] rounded-lg bg-slate-100 border border-slate-200 overflow-hidden">
-                    {/* eslint-disable-next-line jsx-a11y/img-redundant-alt */}
-                    <img src={src} alt={`Dokumentasi ${i + 1}`} className="w-full h-full object-cover" />
-                  </div>
-                ))}
-              </div>
+              {dokumentasi.length === 0 ? (
+                <div className="text-center py-12 text-slate-500">
+                  <ImageIcon className="w-16 h-16 mx-auto mb-3 opacity-20" />
+                  <p className="font-medium">Belum ada dokumentasi</p>
+                  <p className="text-xs text-slate-400 mt-1">Dokumentasi penyaluran akan ditampilkan di sini</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  {dokumentasi.map((doc) => (
+                    <div key={doc.id} className="border border-slate-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
+                      {doc.file_type?.startsWith('image/') ? (
+                        <img src={doc.file_path} alt={doc.judul} className="w-full h-40 object-cover" />
+                      ) : (
+                        <div className="w-full h-40 bg-slate-100 flex items-center justify-center">
+                          <div className="text-center">
+                            <div className="text-4xl mb-2">📄</div>
+                            <p className="text-xs text-slate-600">{doc.file_type || 'Document'}</p>
+                          </div>
+                        </div>
+                      )}
+                      <div className="p-3">
+                        <h4 className="font-semibold text-slate-800 text-sm mb-1 line-clamp-2">{doc.judul}</h4>
+                        {doc.deskripsi && <p className="text-xs text-slate-600 mb-2 line-clamp-2">{doc.deskripsi}</p>}
+                        <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
+                          <span>{doc.tanggal_upload}</span>
+                          <span>{(doc.file_size / 1024).toFixed(0)} KB</span>
+                        </div>
+                        <a 
+                          href={doc.file_path} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="block w-full px-3 py-1.5 bg-emerald-600 text-white text-xs font-semibold rounded hover:bg-emerald-700 text-center"
+                        >
+                          Lihat Dokumentasi
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
           )}
         </div>

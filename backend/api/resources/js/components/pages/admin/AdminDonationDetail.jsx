@@ -19,6 +19,7 @@ export default function AdminDonationDetail() {
       setError(null);
       const response = await adminAPI.getProgramDetail(id);
       console.log("Program detail:", response);
+      console.log("Program status:", response.data?.status || response?.status);
       setProgram(response.data || response);
     } catch (err) {
       console.error("Error loading program detail:", err);
@@ -109,6 +110,13 @@ export default function AdminDonationDetail() {
 
   const hasBuktiTransfer = program.bukti_transfer && program.bukti_transfer.trim() !== '';
   const isUang = program.jenis_bantuan === 'uang';
+  const isPending = program.status === 'pending';
+  const isAktif = program.status === 'aktif';
+  
+  console.log("=== PROGRAM DETAIL RENDER ===");
+  console.log("Program status:", program.status);
+  console.log("isPending:", isPending);
+  console.log("isAktif:", isAktif);
 
   return (
     <div className="min-h-screen flex flex-col bg-[#E6EFFA]">
@@ -172,16 +180,28 @@ export default function AdminDonationDetail() {
           </div>
 
           {/* Status */}
-          {isUang && (
-            <div>
-              <span className="inline-block px-4 py-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-sm font-medium">
-                {hasBuktiTransfer ? 'Menunggu penjadwalan' : 'Menunggu upload bukti transfer'}
-              </span>
-            </div>
-          )}
+          <div>
+            <span className={`inline-block px-4 py-2 rounded-lg text-sm font-medium ${
+              isAktif 
+                ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' 
+                : isPending 
+                  ? 'bg-amber-50 border border-amber-200 text-amber-800'
+                  : 'bg-slate-50 border border-slate-200 text-slate-800'
+            }`}>
+              {isAktif 
+                ? '✓ Program Sudah Dijadwalkan dan Aktif' 
+                : isPending && isUang
+                  ? (hasBuktiTransfer ? 'Menunggu penjadwalan' : 'Menunggu upload bukti transfer')
+                  : isPending
+                    ? 'Menunggu penjadwalan'
+                    : program.status
+              }
+            </span>
+          </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-wrap gap-3 pt-4 border-t border-slate-200">
+          {/* Action Buttons - Only show for pending programs */}
+          {isPending && (
+            <div className="flex flex-wrap gap-3 pt-4 border-t border-slate-200">
             {isUang ? (
               !hasBuktiTransfer ? (
                 <>
@@ -222,7 +242,7 @@ export default function AdminDonationDetail() {
                 Lakukan Penjadwalan dan Aktifkan Donasi
               </button>
             )}
-            {/* Tolak button always shown */}
+            {/* Tolak button only for pending */}
             <button
               onClick={handleReject}
               disabled={processing}
@@ -241,6 +261,18 @@ export default function AdminDonationDetail() {
               )}
             </button>
           </div>
+          )}
+
+          {/* Info for active programs */}
+          {isAktif && (
+            <div className="pt-4 border-t border-slate-200">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800">
+                  <strong>Program ini sudah aktif dan terjadwalkan.</strong> Anda dapat melihat jadwal dan progress penyaluran di tab "Terjadwal".
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Program Description */}
@@ -256,6 +288,14 @@ export default function AdminDonationDetail() {
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mt-6">
             <h2 className="text-lg font-bold text-slate-900 mb-3">Kriteria Penerima</h2>
             <p className="text-slate-700 leading-relaxed">{program.kriteria_penerima}</p>
+          </div>
+        )}
+
+        {/* Keterangan Penerima */}
+        {program.keterangan && (
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mt-6">
+            <h2 className="text-lg font-bold text-slate-900 mb-3">Keterangan Penerima</h2>
+            <p className="text-slate-700 leading-relaxed">{program.keterangan}</p>
           </div>
         )}
       </main>

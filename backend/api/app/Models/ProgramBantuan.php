@@ -57,4 +57,9 @@ class ProgramBantuan extends Model
     {
         return $this->hasMany(KriteriaPenerima::class, 'id_program', 'id_program');
     }
+
+    public function dokumentasi()
+    {
+        return $this->hasMany(DokumentasiProgram::class, 'id_program', 'id_program');
+    }
 }

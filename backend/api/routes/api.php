@@ -35,6 +35,9 @@ Route::middleware('auth:sanctum')->group(function () {
         return $request->user();
     });
     
+    // Dokumentasi Program - accessible by all authenticated users
+    Route::get('/programs/{id}/dokumentasi', [AdminController::class, 'getDokumentasiProgram']);
+    
     // Donatur Routes
     Route::prefix('donatur')->middleware('role:donatur')->group(function () {
         Route::get('/dashboard', [DonorController::class, 'dashboard']);
@@ -61,6 +64,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/applications', [RecipientController::class, 'applications']);
         Route::get('/profile', [RecipientController::class, 'profile']);
         Route::put('/profile', [RecipientController::class, 'updateProfile']);
+        Route::post('/submit-application', [RecipientController::class, 'submitApplication']);
         Route::post('/documents', [RecipientController::class, 'uploadDocument']);
         
         // Jadwal Penyaluran
@@ -110,6 +114,7 @@ Route::middleware('auth:sanctum')->group(function () {
         
         // Manajemen Penerima
         Route::get('/recipients', [AdminController::class, 'recipients']);
+        Route::get('/recipients/available', [AdminController::class, 'getAvailableRecipients']);
         Route::get('/recipients/{id}', [AdminController::class, 'recipientDetail']);
         Route::put('/recipients/{id}', [AdminController::class, 'updateRecipient']);
         Route::delete('/recipients/{id}', [AdminController::class, 'deleteRecipient']);
@@ -128,6 +133,15 @@ Route::middleware('auth:sanctum')->group(function () {
         
         // Analytics
         Route::get('/analytics', [AdminController::class, 'analytics']);
+        
+        // Penjadwalan Penyaluran
+        Route::post('/programs/{id}/schedule', [AdminController::class, 'saveScheduleAndActivateProgram']);
+        Route::get('/programs/{id}/schedules', [AdminController::class, 'getSchedules']);
+        Route::get('/recipients/available', [AdminController::class, 'getAvailableRecipients']);
+        
+        // Dokumentasi Program - upload and delete (admin only)
+        Route::post('/dokumentasi', [AdminController::class, 'uploadDokumentasi']);
+        Route::delete('/dokumentasi/{id}', [AdminController::class, 'deleteDokumentasi']);
         
         // Profil Admin
         Route::get('/profile', [AdminController::class, 'profile']);

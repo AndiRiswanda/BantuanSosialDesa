@@ -36,11 +36,16 @@ export const removeUser = () => {
 export const apiFetch = async (endpoint, options = {}) => {
   const token = getAuthToken();
   
+  // Don't set Content-Type for FormData - let browser set it with boundary
   const headers = {
-    'Content-Type': 'application/json',
     'Accept': 'application/json',
     ...options.headers,
   };
+
+  // Only add Content-Type for JSON requests
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
@@ -209,24 +214,39 @@ export const authAPI = {
 
 // Donor APIs
 export const donorAPI = {
-  getDashboard: () => apiFetch('/api/donor/dashboard'),
+  getDashboard: () => apiFetch('/api/donatur/dashboard'),
   
-  getPrograms: () => apiFetch('/api/donor/programs'),
+  getPrograms: () => apiFetch('/api/donatur/programs'),
   
-  getProgramDetail: (id) => apiFetch(`/api/donor/programs/${id}`),
+  getProgramDetail: (id) => apiFetch(`/api/donatur/programs/${id}`),
   
   createDonation: (data) =>
-    apiFetch('/api/donor/donations', {
+    apiFetch('/api/donatur/donations', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
   
-  getDonations: () => apiFetch('/api/donor/donations'),
+  getDonations: () => apiFetch('/api/donatur/donations'),
   
-  getProfile: () => apiFetch('/api/donor/profile'),
+  // Upload bukti transfer
+  uploadProof: (programId, file) => {
+    const formData = new FormData();
+    formData.append('bukti_transfer', file);
+    
+    return apiFetch(`/api/donatur/programs/${programId}/upload-proof`, {
+      method: 'POST',
+      body: formData,
+      headers: {} // Clear any headers to let browser set multipart/form-data boundary
+    });
+  },
+  
+  // View bukti transfer
+  viewProof: (programId) => apiFetch(`/api/donatur/programs/${programId}/proof`),
+  
+  getProfile: () => apiFetch('/api/donatur/profile'),
   
   updateProfile: (data) =>
-    apiFetch('/api/donor/profile', {
+    apiFetch('/api/donatur/profile', {
       method: 'PUT',
       body: JSON.stringify(data),
     }),

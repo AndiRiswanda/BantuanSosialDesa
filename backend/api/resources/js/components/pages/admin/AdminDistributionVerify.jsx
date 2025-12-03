@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import NavbarAdmin from "../../layout/NavbarAdmin";
-import { ArrowLeft, Calendar as CalendarIcon, Info, Upload, Search } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Info, Upload, Search, Loader2 } from "lucide-react";
+import { adminAPI } from "../../../utils/api";
 
 function Chip({ children, className = "" }) {
   return <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${className}`}>{children}</span>;
@@ -22,26 +23,209 @@ function Progress({ value, note }) {
   );
 }
 
-function UploadModal({ open, onClose }) {
+function UploadModal({ open, onClose, programId = null, programName = '' }) {
+  const [programs, setPrograms] = useState([]);
+  const [selectedProgram, setSelectedProgram] = useState(programId || '');
+  const [judul, setJudul] = useState('');
+  const [deskripsi, setDeskripsi] = useState('');
   const [file, setFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [loadingPrograms, setLoadingPrograms] = useState(false);
+
+  useEffect(() => {
+    if (open && !programId) {
+      loadPrograms();
+    }
+    if (programId) {
+      setSelectedProgram(programId);
+    }
+  }, [open, programId]);
+
+  const loadPrograms = async () => {
+    setLoadingPrograms(true);
+    try {
+      const response = await adminAPI.getPrograms();
+      if (response.success) {
+        const activePrograms = (response.data.data || response.data || [])
+          .filter(p => p.status === 'aktif' || p.status === 'terjadwal');
+        setPrograms(activePrograms);
+      }
+    } catch (error) {
+      console.error('Error loading programs:', error);
+    } finally {
+      setLoadingPrograms(false);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedProgram || !judul || !file) {
+      alert('Mohon lengkapi semua field yang diperlukan');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('id_program', selectedProgram);
+      formData.append('judul', judul);
+      formData.append('deskripsi', deskripsi);
+      formData.append('file', file);
+
+      const response = await adminAPI.uploadDokumentasi(formData);
+      
+      if (response.success) {
+        alert('Dokumentasi berhasil diupload!');
+        setJudul('');
+        setDeskripsi('');
+        setFile(null);
+        setSelectedProgram(programId || '');
+        onClose(true); // Pass true to indicate success
+      } else {
+        alert('Gagal mengupload dokumentasi: ' + (response.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Terjadi kesalahan saat mengupload dokumentasi');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   if (!open) return null;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
-      <div className="w-full max-w-md bg-white rounded-xl shadow-xl border border-slate-200" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-lg bg-white rounded-xl shadow-xl border border-slate-200" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-4 py-3 border-b bg-blue-50 rounded-t-xl">
-          <p className="font-semibold text-slate-800 text-sm">Upload Dokumen</p>
-          <button onClick={onClose} className="p-1 rounded hover:bg-slate-100" aria-label="Tutup">✕</button>
+          <p className="font-semibold text-slate-800">Upload Dokumentasi Penyaluran</p>
+          <button onClick={() => onClose()} className="p-1 rounded hover:bg-slate-100" aria-label="Tutup">✕</button>
         </div>
-        <div className="p-4">
-          <label className="block border-2 border-dashed border-slate-300 rounded-xl p-6 text-center cursor-pointer hover:bg-slate-50">
-            <input type="file" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-            <Upload className="w-8 h-8 mx-auto text-slate-500" />
-            <p className="text-sm text-slate-700 mt-2">Klik untuk pilih file</p>
-            <p className="text-xs text-slate-500">atau drag & drop di sini</p>
-            {file && <p className="text-xs text-emerald-700 font-medium mt-2">Dipilih: {file.name}</p>}
-          </label>
-          <div className="mt-4 text-right">
-            <button onClick={onClose} className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700">Simpan File</button>
+        <div className="p-4 space-y-4">
+          {/* Program Selection */}
+          {!programId && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Pilih Program <span className="text-red-600">*</span>
+              </label>
+              {loadingPrograms ? (
+                <div className="flex items-center gap-2 text-sm text-slate-600">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Memuat program...
+                </div>
+              ) : (
+                <select
+                  value={selectedProgram}
+                  onChange={(e) => setSelectedProgram(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                >
+                  <option value="">-- Pilih Program --</option>
+                  {programs.map((prog) => (
+                    <option key={prog.id_program} value={prog.id_program}>
+                      {prog.nama_program}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
+
+          {programId && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Program</label>
+              <div className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm">
+                {programName}
+              </div>
+            </div>
+          )}
+
+          {/* Judul */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Judul Dokumentasi <span className="text-red-600">*</span>
+            </label>
+            <input
+              type="text"
+              value={judul}
+              onChange={(e) => setJudul(e.target.value)}
+              placeholder="Misal: Dokumentasi Penyaluran Tahap 1"
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+            />
+          </div>
+
+          {/* Deskripsi */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Deskripsi
+            </label>
+            <textarea
+              value={deskripsi}
+              onChange={(e) => setDeskripsi(e.target.value)}
+              placeholder="Keterangan tambahan (opsional)"
+              rows={3}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+            />
+          </div>
+
+          {/* File Upload */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              File <span className="text-red-600">*</span>
+            </label>
+            <label className="block border-2 border-dashed border-slate-300 rounded-xl p-6 text-center cursor-pointer hover:bg-slate-50">
+              <input 
+                type="file" 
+                className="hidden" 
+                accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
+                onChange={(e) => setFile(e.target.files?.[0] || null)} 
+              />
+              <Upload className="w-8 h-8 mx-auto text-slate-500" />
+              <p className="text-sm text-slate-700 mt-2">Klik untuk pilih file</p>
+              <p className="text-xs text-slate-500">Format: JPG, PNG, PDF, DOC, DOCX (Max 10MB)</p>
+              {file && (
+                <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-lg">
+                  <p className="text-xs text-emerald-700 font-medium">{file.name}</p>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setFile(null);
+                    }}
+                    className="text-emerald-700 hover:text-emerald-900"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+            </label>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button 
+              onClick={() => onClose()} 
+              className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50"
+              disabled={uploading}
+            >
+              Batal
+            </button>
+            <button 
+              onClick={handleUpload}
+              disabled={uploading || !selectedProgram || !judul || !file}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {uploading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Mengupload...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4" />
+                  Upload Dokumentasi
+                </>
+              )}
+            </button>
           </div>
         </div>
       </div>
@@ -53,45 +237,75 @@ export default function AdminDistributionVerify() {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  // Mock program detail
-  const program = {
-    id,
-    title: "Pemberdayaan Ibu Rumah Tangga melalui Kebun Sayur",
-    categories: ["Barang", "Pangan & Sembako"],
-    status: "Terjadwal",
-    start: "2025-10-01",
-    end: "2025-12-30",
-    donation: "Barang (bibit, polybag, pupuk organik)",
-    criteria:
-      "Ibu rumah tangga tidak memiliki penghasilan tetap yang memiliki lahan pekarangan minimal 2x2 meter serta tanggungan keluarga lebih dari 2 orang",
-    description:
-      "Penerima diutamakan ibu rumah tangga dengan kondisi ekonomi menengah ke bawah yang ingin memulai kebun sayur mandiri di rumahnya.",
-  };
-
-  const schedules = [
-    { date: "3 Oktober 2025", location: "Kantor Desa", time: "08:00 - 11:00\n14:00 - 16:00", note: "Tahap 1", recipients: 20, status: "Selesai" },
-    { date: "3 November 2025", location: "Kantor Desa", time: "08:00 - 11:00\n14:00 - 16:00", note: "Tahap 2", recipients: 40, status: "Terjadwal" },
-    { date: "3 Desember 2025", location: "Kantor Desa", time: "08:00 - 11:00\n14:00 - 16:00", note: "Tahap 3", recipients: 40, status: "Terjadwal" },
-  ];
-
-  const recipients = useMemo(
-    () =>
-      Array.from({ length: 50 }).map((_, i) => ({
-        id: i + 1,
-        kk: `3174-45${String(i + 1).padStart(4, "0")}`,
-        name: ["Ahmad Yani", "Siti Aminah", "Ratna Dewi", "Joko Susilo", "Siti Nurhayati"][i % 5] + ` ${Math.floor(i / 5) + 1}`,
-        address: `Jl. Mawar No. ${i + 10}, RT 0${(i % 4) + 1}/0${(i % 3) + 1}`,
-        tahap: (i % 3) + 1,
-        status: i % 7 === 0 ? "Selesai" : "Menunggu",
-      })),
-    []
-  );
+  const [program, setProgram] = useState(null);
+  const [schedules, setSchedules] = useState([]);
+  const [recipients, setRecipients] = useState([]);
+  const [dokumentasi, setDokumentasi] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
   const [tahap, setTahap] = useState(0); // 0 = Semua
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 10;
   const containerRef = useRef(null);
   const [openUpload, setOpenUpload] = useState(false);
+
+  useEffect(() => {
+    loadProgramData();
+  }, [id]);
+
+  const loadProgramData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Load program detail
+      const programResponse = await adminAPI.getProgramDetail(id);
+      if (programResponse.success && programResponse.data) {
+        const programData = programResponse.data.data || programResponse.data;
+        setProgram(programData);
+      }
+
+      // Load dokumentasi
+      try {
+        const dokumentasiResponse = await adminAPI.getDokumentasiProgram(id);
+        if (dokumentasiResponse.success) {
+          setDokumentasi(dokumentasiResponse.data || []);
+        }
+      } catch (dokError) {
+        console.error('Error loading dokumentasi:', dokError);
+        // Don't fail the whole page if dokumentasi fails
+        setDokumentasi([]);
+      }
+
+      // Load schedules - gunakan endpoint yang sesuai
+      // const scheduleResponse = await adminAPI.getSchedules(id);
+      // Mock schedules untuk sementara
+      setSchedules([
+        { date: "3 Oktober 2025", location: "Kantor Desa", time: "08:00 - 11:00\n14:00 - 16:00", note: "Tahap 1", recipients: 20, status: "Selesai" },
+        { date: "3 November 2025", location: "Kantor Desa", time: "08:00 - 11:00\n14:00 - 16:00", note: "Tahap 2", recipients: 40, status: "Terjadwal" },
+        { date: "3 Desember 2025", location: "Kantor Desa", time: "08:00 - 11:00\n14:00 - 16:00", note: "Tahap 3", recipients: 40, status: "Terjadwal" },
+      ]);
+
+      // Mock recipients untuk sementara
+      const mockRecipients = Array.from({ length: 50 }).map((_, i) => ({
+        id: i + 1,
+        kk: `3174-45${String(i + 1).padStart(4, "0")}`,
+        name: ["Ahmad Yani", "Siti Aminah", "Ratna Dewi", "Joko Susilo", "Siti Nurhayati"][i % 5] + ` ${Math.floor(i / 5) + 1}`,
+        address: `Jl. Mawar No. ${i + 10}, RT 0${(i % 4) + 1}/0${(i % 3) + 1}`,
+        tahap: (i % 3) + 1,
+        status: i % 7 === 0 ? "Selesai" : "Menunggu",
+      }));
+      setRecipients(mockRecipients);
+      
+    } catch (err) {
+      console.error("Error loading program data:", err);
+      setError(err.message || "Gagal memuat data program");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filtered = recipients.filter((r) => {
     const byTahap = !tahap || r.tahap === tahap;
@@ -134,13 +348,47 @@ export default function AdminDistributionVerify() {
   }, [safePage, totalPages]);
 
   const fmtDate = (iso) => {
-    // Keep it simple; display day month year in id style if preformatted
     try {
       const d = new Date(iso);
       if (!isNaN(d)) return d.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
     } catch {}
     return iso;
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-[#E6EFFA]">
+        <NavbarAdmin />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 animate-spin text-emerald-600 mx-auto" />
+            <p className="mt-4 text-slate-600">Memuat data program...</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (error || !program) {
+    return (
+      <div className="min-h-screen flex flex-col bg-[#E6EFFA]">
+        <NavbarAdmin />
+        <main className="flex-1 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-lg p-8 max-w-md text-center">
+            <div className="text-red-600 mb-4">⚠️</div>
+            <h2 className="text-xl font-bold text-slate-800 mb-2">Data Tidak Ditemukan</h2>
+            <p className="text-slate-600 mb-6">{error || "Program tidak ditemukan"}</p>
+            <button
+              onClick={() => navigate('/admin/penyaluran')}
+              className="px-6 py-3 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700"
+            >
+              Kembali
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-[#E6EFFA]">
@@ -159,14 +407,21 @@ export default function AdminDistributionVerify() {
           <div className="mt-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-slate-900 font-semibold leading-snug">{program.title}</p>
+                <p className="text-slate-900 font-semibold leading-snug">{program.nama_program}</p>
                 <div className="mt-1 flex flex-wrap gap-2">
-                  {program.categories.map((c) => (
-                    <Chip key={c} className="bg-indigo-50 text-indigo-700 border border-indigo-200">{c}</Chip>
-                  ))}
+                  <Chip className="bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    {program.jenis_bantuan === 'barang' ? 'Barang' : program.jenis_bantuan === 'uang' ? 'Uang' : program.jenis_bantuan}
+                  </Chip>
+                  {program.kategori?.nama_kategori && (
+                    <Chip className="bg-indigo-50 text-indigo-700 border border-indigo-200">
+                      {program.kategori.nama_kategori}
+                    </Chip>
+                  )}
                 </div>
               </div>
-              <Chip className="bg-blue-100 text-blue-800 border border-blue-200">{program.status}</Chip>
+              <Chip className="bg-blue-100 text-blue-800 border border-blue-200">
+                {program.status === 'aktif' ? 'Aktif' : program.status === 'terjadwal' ? 'Terjadwal' : program.status}
+              </Chip>
             </div>
 
             <div className="grid sm:grid-cols-2 gap-3 mt-3">
@@ -174,14 +429,14 @@ export default function AdminDistributionVerify() {
                 <label className="block text-xs font-medium text-slate-700">Tanggal Dimulai</label>
                 <div className="relative mt-1">
                   <CalendarIcon className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input disabled value={fmtDate(program.start)} className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-300 bg-slate-50 text-sm" />
+                  <input disabled value={fmtDate(program.tanggal_mulai)} className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-300 bg-slate-50 text-sm" />
                 </div>
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-700">Tanggal Selesai</label>
                 <div className="relative mt-1">
                   <CalendarIcon className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input disabled value={fmtDate(program.end)} className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-300 bg-slate-50 text-sm" />
+                  <input disabled value={fmtDate(program.tanggal_selesai)} className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-300 bg-slate-50 text-sm" />
                 </div>
               </div>
             </div>
@@ -189,17 +444,17 @@ export default function AdminDistributionVerify() {
             <div className="grid sm:grid-cols-2 gap-3 mt-3">
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
                 <div className="flex items-center gap-2 text-slate-800 font-medium">📦 Jumlah Donasi</div>
-                <p className="mt-1 text-slate-700">{program.donation}</p>
+                <p className="mt-1 text-slate-700">{program.jumlah_donasi || '-'}</p>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
                 <div className="flex items-center gap-2 text-slate-800 font-medium"><Info className="w-4 h-4 text-emerald-600" /> Kriteria Penerima Donasi</div>
-                <p className="mt-1 text-slate-700">{program.criteria}</p>
+                <p className="mt-1 text-slate-700">{program.kriteria_penerima || '-'}</p>
               </div>
             </div>
 
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm mt-3">
               <div className="flex items-center gap-2 text-slate-800 font-medium"><Info className="w-4 h-4 text-emerald-600" /> Keterangan Penerimaan Donasi</div>
-              <p className="mt-1 text-slate-700">{program.description}</p>
+              <p className="mt-1 text-slate-700">{program.keterangan_penerima || program.deskripsi || '-'}</p>
             </div>
           </div>
         </section>
@@ -338,7 +593,85 @@ export default function AdminDistributionVerify() {
           </div>
         </section>
 
-        <UploadModal open={openUpload} onClose={()=>setOpenUpload(false)} />
+        {/* Dokumentasi Section */}
+        <section className="bg-white rounded-xl shadow-sm border border-emerald-300 mt-4">
+          <div className="px-4 py-3 border-b border-slate-200 flex items-center gap-2 text-sm font-semibold text-[#0B2B5E]">
+            <span>📸 Dokumentasi Penyaluran</span>
+          </div>
+          <div className="p-4">
+            {dokumentasi.length === 0 ? (
+              <div className="text-center py-8 text-slate-600">
+                <Upload className="w-12 h-12 mx-auto text-slate-400 mb-2" />
+                <p className="text-sm">Belum ada dokumentasi</p>
+                <p className="text-xs text-slate-500 mt-1">Upload dokumentasi untuk program ini</p>
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {dokumentasi.map((doc) => (
+                  <div key={doc.id} className="border border-slate-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
+                    {doc.file_type?.startsWith('image/') ? (
+                      <img src={doc.file_path} alt={doc.judul} className="w-full h-40 object-cover" />
+                    ) : (
+                      <div className="w-full h-40 bg-slate-100 flex items-center justify-center">
+                        <div className="text-center">
+                          <div className="text-4xl mb-2">📄</div>
+                          <p className="text-xs text-slate-600">{doc.file_type || 'Document'}</p>
+                        </div>
+                      </div>
+                    )}
+                    <div className="p-3">
+                      <h4 className="font-semibold text-slate-800 text-sm mb-1">{doc.judul}</h4>
+                      {doc.deskripsi && <p className="text-xs text-slate-600 mb-2">{doc.deskripsi}</p>}
+                      <div className="flex items-center justify-between text-xs text-slate-500">
+                        <span>{doc.tanggal_upload}</span>
+                        <span>{(doc.file_size / 1024).toFixed(0)} KB</span>
+                      </div>
+                      <div className="mt-2 flex gap-2">
+                        <a 
+                          href={doc.file_path} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="flex-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 text-center"
+                        >
+                          Lihat
+                        </a>
+                        <button
+                          onClick={async () => {
+                            if (confirm('Hapus dokumentasi ini?')) {
+                              try {
+                                await adminAPI.deleteDokumentasi(doc.id);
+                                alert('Dokumentasi berhasil dihapus');
+                                loadProgramData();
+                              } catch (error) {
+                                alert('Gagal menghapus dokumentasi');
+                              }
+                            }
+                          }}
+                          className="px-3 py-1.5 bg-red-600 text-white text-xs rounded hover:bg-red-700"
+                        >
+                          Hapus
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        <UploadModal 
+          open={openUpload} 
+          onClose={(success) => {
+            setOpenUpload(false);
+            if (success) {
+              // Reload program data to refresh dokumentasi
+              loadProgramData();
+            }
+          }}
+          programId={id}
+          programName={program?.nama_program}
+        />
       </main>
     </div>
   );

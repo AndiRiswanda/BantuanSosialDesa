@@ -1,8 +1,87 @@
 import React, { useState, useEffect } from "react";
 import NavbarAdmin from "../../layout/NavbarAdmin";
-import { Check, Eye, Mail, MoreVertical, Search, ThumbsUp, ThumbsDown, UserX, ShieldCheck, Edit, Lock, Unlock, Trash2, X, AlertTriangle, Loader2 } from "lucide-react";
+import { Check, Eye, Mail, MoreVertical, Search, ThumbsUp, ThumbsDown, UserX, ShieldCheck, Edit, Lock, Unlock, Trash2, X, AlertTriangle, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { adminAPI } from "../../../utils/api";
+
+// Pagination Component
+const Pagination = ({ currentPage, lastPage, onPageChange }) => {
+  const pages = [];
+  const maxVisible = 5;
+  
+  let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+  let endPage = Math.min(lastPage, startPage + maxVisible - 1);
+  
+  if (endPage - startPage < maxVisible - 1) {
+    startPage = Math.max(1, endPage - maxVisible + 1);
+  }
+  
+  for (let i = startPage; i <= endPage; i++) {
+    pages.push(i);
+  }
+  
+  return (
+    <div className="flex items-center justify-center gap-2 mt-4">
+      <button
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <ChevronLeft className="w-4 h-4" />
+      </button>
+      
+      {startPage > 1 && (
+        <>
+          <button
+            onClick={() => onPageChange(1)}
+            className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+          >
+            1
+          </button>
+          {startPage > 2 && <span className="text-slate-500">...</span>}
+        </>
+      )}
+      
+      {pages.map(page => (
+        <button
+          key={page}
+          onClick={() => onPageChange(page)}
+          className={`inline-flex items-center justify-center w-8 h-8 rounded-md border ${
+            page === currentPage
+              ? 'bg-emerald-600 text-white border-emerald-600'
+              : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+          }`}
+        >
+          {page}
+        </button>
+      ))}
+      
+      {endPage < lastPage && (
+        <>
+          {endPage < lastPage - 1 && <span className="text-slate-500">...</span>}
+          <button
+            onClick={() => onPageChange(lastPage)}
+            className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+          >
+            {lastPage}
+          </button>
+        </>
+      )}
+      
+      <button
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === lastPage}
+        className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <ChevronRight className="w-4 h-4" />
+      </button>
+      
+      <span className="ml-2 text-sm text-slate-600">
+        Halaman {currentPage} dari {lastPage}
+      </span>
+    </div>
+  );
+};
 
 const Segmented = ({ value, onChange }) => {
   const items = [
@@ -39,6 +118,11 @@ export default function AdminVerificationDashboard() {
   const [donors, setDonors] = useState([]);
   const [recipients, setRecipients] = useState([]);
   
+  // Pagination states
+  const [pendingPagination, setPendingPagination] = useState({ current_page: 1, last_page: 1, total: 0 });
+  const [donorPagination, setDonorPagination] = useState({ current_page: 1, last_page: 1, total: 0 });
+  const [recipientPagination, setRecipientPagination] = useState({ current_page: 1, last_page: 1, total: 0 });
+  
   // Loading states
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -50,28 +134,43 @@ export default function AdminVerificationDashboard() {
     loadData();
   }, [active]);
 
-  const loadData = async () => {
+  const loadData = async (page = 1) => {
     try {
       setLoading(true);
       setError(null);
       
       if (active === "pengajuan") {
-        const response = await adminAPI.getPendingRecipients({ search: query });
+        const response = await adminAPI.getPendingRecipients({ search: query, page });
         if (response.success && response.data) {
           const data = response.data.data || response.data;
           setPendingRecipients(Array.isArray(data) ? data : []);
+          setPendingPagination({
+            current_page: response.data.current_page || 1,
+            last_page: response.data.last_page || 1,
+            total: response.data.total || 0,
+          });
         }
       } else if (active === "donatur") {
-        const response = await adminAPI.getDonors({ search: query });
+        const response = await adminAPI.getDonors({ search: query, page });
         if (response.success && response.data) {
           const data = response.data.data || response.data;
           setDonors(Array.isArray(data) ? data : []);
+          setDonorPagination({
+            current_page: response.data.current_page || 1,
+            last_page: response.data.last_page || 1,
+            total: response.data.total || 0,
+          });
         }
       } else if (active === "penerima") {
-        const response = await adminAPI.getRecipients({ search: query });
+        const response = await adminAPI.getRecipients({ search: query, page });
         if (response.success && response.data) {
           const data = response.data.data || response.data;
           setRecipients(Array.isArray(data) ? data : []);
+          setRecipientPagination({
+            current_page: response.data.current_page || 1,
+            last_page: response.data.last_page || 1,
+            total: response.data.total || 0,
+          });
         }
       }
     } catch (err) {
@@ -100,7 +199,7 @@ export default function AdminVerificationDashboard() {
         status_verifikasi: status 
       });
       loadData();
-      alert(status === 'terverifikasi' ? 'Penerima berhasil diverifikasi' : 'Pengajuan ditolak');
+      alert(status === 'disetujui' ? 'Penerima berhasil diverifikasi' : 'Pengajuan ditolak');
     } catch (err) {
       console.error("Error verifying recipient:", err);
       alert(err.message || "Gagal memverifikasi penerima");
@@ -285,7 +384,7 @@ export default function AdminVerificationDashboard() {
 
                         <div className="mt-3 flex items-center gap-3">
                           <button 
-                            onClick={() => handleVerifyRecipient(recipient.id_penerima, 'terverifikasi')}
+                            onClick={() => handleVerifyRecipient(recipient.id_penerima, 'disetujui')}
                             disabled={actionLoading}
                             className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
                           >
@@ -305,6 +404,13 @@ export default function AdminVerificationDashboard() {
                 })
               )}
             </div>
+            {pendingPagination.last_page > 1 && (
+              <Pagination
+                currentPage={pendingPagination.current_page}
+                lastPage={pendingPagination.last_page}
+                onPageChange={(page) => loadData(page)}
+              />
+            )}
           </section>
         )}
 
@@ -392,6 +498,13 @@ export default function AdminVerificationDashboard() {
                 )}
               </table>
             </div>
+            {donorPagination.last_page > 1 && (
+              <Pagination
+                currentPage={donorPagination.current_page}
+                lastPage={donorPagination.last_page}
+                onPageChange={(page) => loadData(page)}
+              />
+            )}
           </section>
         )}
 
@@ -471,6 +584,13 @@ export default function AdminVerificationDashboard() {
                 )}
               </table>
             </div>
+            {recipientPagination.last_page > 1 && (
+              <Pagination
+                currentPage={recipientPagination.current_page}
+                lastPage={recipientPagination.last_page}
+                onPageChange={(page) => loadData(page)}
+              />
+            )}
           </section>
         )}
       </div>

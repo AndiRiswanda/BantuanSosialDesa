@@ -155,7 +155,7 @@ class AuthController extends Controller
             'status_anak' => $request->status_anak,
             'jumlah_tanggungan' => $request->jumlah_tanggungan,
             'penghasilan' => $request->penghasilan,
-            'status_verifikasi' => 'pending',
+            'status_verifikasi' => 'belum_mengajukan', // User baru belum mengajukan bantuan
         ]);
 
         $token = $penerima->createToken('recipient-token')->plainTextToken;
