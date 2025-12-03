@@ -42,6 +42,7 @@ function RecipientProgramCard({ program, navigate }) {
       case 'menunggu': return 'Terjadwal'; // Program aktif yang sedang berjalan
       case 'selesai': return 'Selesai';
       case 'batal': return 'Dibatalkan';
+      case 'dijadwalkan': return 'Terjadwal'; // Transaksi yang sudah dijadwalkan
       default: return status;
     }
   };

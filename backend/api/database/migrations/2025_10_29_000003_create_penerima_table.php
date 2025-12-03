@@ -19,7 +19,7 @@ return new class extends Migration {
             $table->string('status_anak', 50)->nullable();
             $table->integer('jumlah_tanggungan')->default(0);
             $table->enum('penghasilan', ['< Rp 500.000', 'Rp 500.000 - Rp 1.000.000', 'Rp 1.000.000 - Rp 2.000.000', 'Rp 2.000.000 - Rp 3.000.000', '> Rp 3.000.000'])->nullable();
-            $table->enum('status_verifikasi', ['pending', 'disetujui', 'ditolak'])->default('pending');
+            $table->enum('status_verifikasi', ['belum_mengajukan', 'pending', 'disetujui', 'ditolak'])->default('belum_mengajukan');
             $table->timestamps();
         });
     }

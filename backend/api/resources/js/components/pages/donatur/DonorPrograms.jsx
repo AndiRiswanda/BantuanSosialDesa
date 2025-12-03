@@ -115,12 +115,19 @@ export default function DonorPrograms() {
           ? `Rp ${parseFloat(program.jumlah_bantuan).toLocaleString('id-ID')}`
           : `${parseFloat(program.jumlah_bantuan).toLocaleString('id-ID')} unit`;
         
-        // Map status dari database ke UI
+        // Map status dari database ke UI dengan mempertimbangkan jadwal
         let uiStatus = 'PENDING';
         let statusColor = 'yellow';
         if (program.status === 'aktif') {
-          uiStatus = 'SCHEDULED';
-          statusColor = 'blue';
+          // Jika status aktif dan sudah dijadwalkan, masuk ke SCHEDULED
+          if (program.has_schedule) {
+            uiStatus = 'SCHEDULED';
+            statusColor = 'blue';
+          } else {
+            // Jika status aktif tapi belum dijadwalkan, tetap PENDING
+            uiStatus = 'PENDING';
+            statusColor = 'yellow';
+          }
         } else if (program.status === 'selesai') {
           uiStatus = 'COMPLETED';
           statusColor = 'green';
@@ -129,7 +136,7 @@ export default function DonorPrograms() {
           statusColor = 'yellow';
         }
         
-        // Determine CTA key and note for pending money donations
+        // Determine CTA key and note
         let ctaKey = undefined;
         let note = null;
         
@@ -141,8 +148,10 @@ export default function DonorPrograms() {
             ctaKey = 'upload';
             note = 'Menunggu upload bukti transfer';
           }
-        } else if (program.status === 'aktif') {
-          note = 'Program sedang berjalan';
+        } else if (program.status === 'aktif' && program.has_schedule) {
+          note = 'Program sedang berjalan dan sudah dijadwalkan';
+        } else if (program.status === 'aktif' && !program.has_schedule) {
+          note = 'Menunggu penjadwalan oleh admin';
         }
         
         return {

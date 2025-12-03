@@ -1,21 +1,28 @@
 import React, { useRef, useState } from "react";
 import { X, Upload, FileText } from "lucide-react";
+import { donorAPI } from "../../../utils/api";
 
 /**
  * UploadProofModal
  * Props:
  * - onClose: () => void
  * - onSave: (file: File | null) => void
+ * - programId: string/number - ID program untuk upload bukti transfer
  */
-export default function UploadProofModal({ onClose, onSave }) {
+export default function UploadProofModal({ onClose, onSave, programId }) {
   const inputRef = useRef(null);
   const [file, setFile] = useState(null);
   const [dragOver, setDragOver] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleChoose = () => inputRef.current?.click();
   const handleChange = (e) => {
     const f = e.target.files?.[0];
-    if (f) setFile(f);
+    if (f) {
+      setFile(f);
+      setError(null);
+    }
   };
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -32,7 +39,34 @@ export default function UploadProofModal({ onClose, onSave }) {
     e.stopPropagation();
     setDragOver(false);
     const f = e.dataTransfer?.files?.[0];
-    if (f) setFile(f);
+    if (f) {
+      setFile(f);
+      setError(null);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!file || !programId) return;
+    
+    try {
+      setUploading(true);
+      setError(null);
+      
+      const response = await donorAPI.uploadProof(programId, file);
+      
+      if (response && onSave) {
+        onSave(file);
+      }
+      
+      alert('Bukti transfer berhasil diunggah!');
+      onClose();
+    } catch (err) {
+      console.error('Upload error:', err);
+      const errorMessage = err?.response?.data?.message || err?.message || 'Gagal mengunggah bukti transfer';
+      setError(errorMessage);
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -55,6 +89,13 @@ export default function UploadProofModal({ onClose, onSave }) {
           </button>
         </div>
 
+        {/* Error message */}
+        {error && (
+          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
         {/* Drop zone */}
         <div
           role="button"
@@ -73,6 +114,7 @@ export default function UploadProofModal({ onClose, onSave }) {
             <>
               <div className="mt-2 text-sm text-slate-700">Klik untuk pilih file</div>
               <div className="text-xs text-slate-500">atau drag&amp;drop file disini</div>
+              <div className="text-xs text-slate-400 mt-2">Format: JPG, PNG, PDF (Maks. 100MB)</div>
             </>
           ) : (
             <div className="mt-3 inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700">
@@ -91,13 +133,13 @@ export default function UploadProofModal({ onClose, onSave }) {
         {/* Action */}
         <div className="mt-5 flex justify-end">
           <button
-            onClick={() => onSave?.(file || null)}
-            disabled={!file}
+            onClick={handleUpload}
+            disabled={!file || uploading}
             className={`rounded-lg px-4 py-2 text-white font-semibold shadow disabled:opacity-50 disabled:cursor-not-allowed ${
-              file ? "bg-[#43A047] hover:bg-green-700" : "bg-[#43A047]"
+              file && !uploading ? "bg-[#43A047] hover:bg-green-700" : "bg-[#43A047]"
             }`}
           >
-            Simpan File
+            {uploading ? 'Mengunggah...' : 'Simpan File'}
           </button>
         </div>
       </div>

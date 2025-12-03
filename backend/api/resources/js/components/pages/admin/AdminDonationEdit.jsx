@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import NavbarAdmin from "../../layout/NavbarAdmin";
+import { apiFetch } from "../../../utils/api";
 import {
   ArrowLeft,
   Calendar as CalendarIcon,
@@ -99,38 +100,50 @@ function StageCard({ index, stage, onChange, onPickRecipients, onRemove, canRemo
 // Reuse the richer modal from the schedule page by inlining here
 function RecipientPickerModal({ open, onClose, onSave, initialSelected = [] }) {
   const incomeTiers = [
-    { key: "lt500", label: "< Rp 500.000,-" },
-    { key: "500to1m", label: "Rp 500.000,- – Rp 1.000.000" },
-    { key: "1to2m", label: "Rp 1.000.000,- – Rp 2.000.000" },
-    { key: "gt2m", label: "Rp 2.000.000,- – Rp 3.000.000+" },
+    { key: "lt500", label: "< Rp 500.000" },
+    { key: "500to1m", label: "Rp 500.000 - Rp 1.000.000" },
+    { key: "1to2m", label: "Rp 1.000.000 - Rp 2.000.000" },
+    { key: "gt2m", label: "Rp 2.000.000 - Rp 3.000.000 / > Rp 3.000.000" },
   ];
-  const allRecipients = useMemo(() => {
-    const jobs = ["Buruh", "Petani", "Pedagang", "Ibu Rumah Tangga"]; 
-    const streets = ["Melati", "Mawar", "Kenanga", "Anggrek", "Flamboyan"];
-    return Array.from({ length: 40 }).map((_, i) => {
-      const tierIndex = i % incomeTiers.length;
-      return {
-        id: i + 1,
-        name: `Warga ${i + 1}`,
-        kk: `3174-45${String(i + 1).padStart(4, "0")}`,
-        nik: `3173${String(i + 1).padStart(8, "0")}`,
-        address: `Jl. ${streets[i % streets.length]} No. ${10 + i}, RT 0${(i % 4) + 1}/0${(i % 3) + 1}`,
-        dependents: (i % 5) + 0,
-        incomeTier: incomeTiers[tierIndex].key,
-        job: jobs[i % jobs.length],
-      };
-    });
-  }, []);
 
+  const [allRecipients, setAllRecipients] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(new Set(initialSelected));
   const [tierFilter, setTierFilter] = useState(new Set());
   const [minDeps, setMinDeps] = useState(0);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  React.useEffect(() => {
-    if (open) setSelected(new Set(initialSelected));
+  // Fetch recipients from API
+  useEffect(() => {
+    if (open) {
+      fetchRecipients();
+      setSelected(new Set(initialSelected));
+    }
   }, [open, initialSelected]);
+
+  const fetchRecipients = async () => {
+    setLoading(true);
+    try {
+      // Request all recipients with large per_page parameter and filter by status
+      const response = await apiFetch('/api/admin/recipients?per_page=1000&status_verifikasi=disetujui', {
+        method: 'GET',
+      });
+      
+      console.log('API Response:', response);
+      
+      if (response.success) {
+        // Laravel paginated response structure: response.data is the pagination object, response.data.data is the array
+        const recipients = response.data.data || [];
+        console.log('Recipients loaded:', recipients.length);
+        setAllRecipients(recipients);
+      }
+    } catch (error) {
+      console.error('Error fetching recipients:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const toggleTier = (key) => {
     const next = new Set(tierFilter);
@@ -140,9 +153,21 @@ function RecipientPickerModal({ open, onClose, onSave, initialSelected = [] }) {
 
   const filtered = allRecipients.filter((r) => {
     const q = query.trim().toLowerCase();
-    const bySearch = !q || r.name.toLowerCase().includes(q) || r.kk.includes(q) || r.nik.includes(q) || r.address.toLowerCase().includes(q);
-    const byTier = tierFilter.size === 0 || tierFilter.has(r.incomeTier);
-    const byDeps = Number(r.dependents) >= Number(minDeps || 0);
+    const nama = r.nama_kepala || '';
+    const no_kk = r.no_kk || '';
+    const alamat = r.alamat || '';
+    const bySearch = !q || nama.toLowerCase().includes(q) || no_kk.includes(q) || alamat.toLowerCase().includes(q);
+    
+    // Map income tier from ENUM string to tier key
+    let recipientTier = '';
+    const penghasilan = r.penghasilan || '';
+    if (penghasilan === '< Rp 500.000') recipientTier = 'lt500';
+    else if (penghasilan === 'Rp 500.000 - Rp 1.000.000') recipientTier = '500to1m';
+    else if (penghasilan === 'Rp 1.000.000 - Rp 2.000.000') recipientTier = '1to2m';
+    else if (penghasilan === 'Rp 2.000.000 - Rp 3.000.000' || penghasilan === '> Rp 3.000.000') recipientTier = 'gt2m';
+    
+    const byTier = tierFilter.size === 0 || tierFilter.has(recipientTier);
+    const byDeps = Number(r.jumlah_tanggungan || 0) >= Number(minDeps || 0);
     return bySearch && byTier && byDeps;
   });
 
@@ -154,7 +179,7 @@ function RecipientPickerModal({ open, onClose, onSave, initialSelected = [] }) {
 
   if (!open) return null;
 
-  const selectedList = allRecipients.filter((r) => selected.has(r.id));
+  const selectedList = allRecipients.filter((r) => selected.has(r.id_penerima));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
@@ -191,12 +216,12 @@ function RecipientPickerModal({ open, onClose, onSave, initialSelected = [] }) {
                     </tr>
                   ) : (
                     selectedList.map((r, idx) => (
-                      <tr key={r.id} className="hover:bg-slate-50">
+                      <tr key={r.id_penerima} className="hover:bg-slate-50">
                         <td className="px-3 py-2">{idx + 1}</td>
-                        <td className="px-3 py-2">{r.nik}</td>
-                        <td className="px-3 py-2">{r.name}</td>
-                        <td className="px-3 py-2">{r.address}</td>
-                        <td className="px-3 py-2">{r.dependents}</td>
+                        <td className="px-3 py-2">{r.no_kk}</td>
+                        <td className="px-3 py-2">{r.nama_kepala}</td>
+                        <td className="px-3 py-2">{r.alamat}</td>
+                        <td className="px-3 py-2">{r.jumlah_tanggungan || 0}</td>
                         <td className="px-3 py-2">
                           <button type="button" className="px-2 py-1 text-xs rounded bg-emerald-600 text-white">Detail</button>
                         </td>
@@ -243,16 +268,26 @@ function RecipientPickerModal({ open, onClose, onSave, initialSelected = [] }) {
           </section>
 
           <section className="max-h-72 overflow-auto border border-slate-200 rounded-lg divide-y">
-            {filtered.map((r) => (
-              <label key={r.id} className="flex items-start gap-3 p-3 hover:bg-slate-50">
-                <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} className="h-4 w-4 mt-1" />
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-slate-900 truncate">{r.kk} – {r.name} – {r.address}</p>
-                  <p className="text-xs text-slate-600">Penghasilan: {incomeTiers.find((t) => t.key === r.incomeTier)?.label} | Tanggungan: {r.dependents} | Pekerjaan: {r.job}</p>
-                </div>
-              </label>
-            ))}
-            {filtered.length === 0 && <div className="p-4 text-sm text-slate-600">Tidak ada hasil.</div>}
+            {loading ? (
+              <div className="p-4 text-sm text-slate-600 flex items-center justify-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Memuat data penerima...
+              </div>
+            ) : filtered.map((r) => {
+              // penghasilan is already a string from ENUM, use it directly
+              const tierLabel = r.penghasilan || 'Tidak ada data';
+              
+              return (
+                <label key={r.id_penerima} className="flex items-start gap-3 p-3 border border-slate-200 rounded-lg hover:bg-emerald-50 hover:border-emerald-400 cursor-pointer">
+                  <input type="checkbox" checked={selected.has(r.id_penerima)} onChange={() => toggle(r.id_penerima)} className="h-4 w-4 mt-1" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-slate-900 truncate">{r.no_kk} – {r.nama_kepala} – {r.alamat}</p>
+                    <p className="text-xs text-slate-600">Penghasilan: {tierLabel} | Tanggungan: {r.jumlah_tanggungan || 0} | Pekerjaan: {r.pekerjaan || '-'}</p>
+                  </div>
+                </label>
+              );
+            })}
+            {!loading && filtered.length === 0 && <div className="p-4 text-sm text-slate-600">Tidak ada hasil.</div>}
           </section>
 
           <div className="flex items-center justify-end">

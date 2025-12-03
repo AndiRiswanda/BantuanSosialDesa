@@ -69,8 +69,12 @@ class RecipientController extends Controller
                 ];
             });
         
+        // Check if user needs to fill application form
+        $needsApplication = $penerima->status_verifikasi === 'belum_mengajukan';
+        
         return response()->json([
             'success' => true,
+            'needs_application' => $needsApplication,
             'user' => [
                 'id' => $penerima->id_penerima,
                 'name' => $penerima->nama_kepala,
@@ -159,22 +163,71 @@ class RecipientController extends Controller
             ->where('id_program', $id)
             ->exists();
 
+        // Get statistics
+        $totalPenerima = $program->penerimaPrograms()->count();
+        $penerimaSelesai = $program->penerimaPrograms()->where('status_penerimaan', 'selesai')->count();
+        
+        // Get schedules
+        $schedules = TransaksiPenyaluran::whereHas('penerimaProgram', function($q) use ($id) {
+            $q->where('id_program', $id);
+        })
+        ->orderBy('tanggal_penyaluran')
+        ->get()
+        ->map(function($transaksi) {
+            return [
+                'id' => $transaksi->id_transaksi,
+                'tanggal_penyaluran' => $transaksi->tanggal_penyaluran,
+                'waktu_penyaluran' => $transaksi->jam_penyaluran,
+                'lokasi_penyaluran' => $transaksi->lokasi_penyaluran,
+                'keterangan' => $transaksi->catatan,
+                'status_penyaluran' => $transaksi->status_penyaluran,
+            ];
+        });
+
+        // Get recipients
+        $recipients = $program->penerimaPrograms->map(function($pp) {
+            return [
+                'id' => $pp->id_penerima_program,
+                'nama' => $pp->penerima->nama_kepala,
+                'nama_lengkap' => $pp->penerima->nama_kepala,
+                'no_kk' => $pp->penerima->no_kk,
+                'kk' => $pp->penerima->no_kk,
+                'alamat' => $pp->penerima->alamat,
+                'status' => $pp->status_penerimaan,
+                'status_penerimaan' => $pp->status_penerimaan,
+            ];
+        });
+
         return response()->json([
             'success' => true,
-            'program' => [
-                'id' => $program->id_program,
-                'title' => $program->nama_program,
-                'donor' => $program->donatur->nama_organisasi ?? $program->donatur->nama_lengkap ?? 'N/A',
-                'category' => $program->kategori->nama_kategori ?? 'N/A',
-                'type' => $program->jenis_bantuan,
-                'start' => $program->tanggal_mulai->format('d M Y'),
-                'end' => $program->tanggal_selesai->format('d M Y'),
-                'amount' => $program->jenis_bantuan === 'uang' 
-                    ? 'Rp ' . number_format($program->jumlah_bantuan, 0, ',', '.')
-                    : null,
-                'description' => $program->keterangan,
+            'data' => [
+                'id_program' => $program->id_program,
+                'nama_program' => $program->nama_program,
+                'deskripsi' => $program->deskripsi,
+                'jenis_bantuan' => $program->jenis_bantuan,
+                'jumlah_bantuan' => $program->jumlah_bantuan,
+                'deskripsi_bantuan' => $program->keterangan,
+                'kriteria_penerima' => $program->keterangan,
+                'keterangan_tambahan' => $program->deskripsi,
+                'tanggal_mulai' => $program->tanggal_mulai,
+                'tanggal_selesai' => $program->tanggal_selesai,
                 'status' => $program->status,
                 'has_applied' => $hasApplied,
+                'kategori' => [
+                    'id_kategori' => $program->kategori->id_kategori ?? null,
+                    'nama_kategori' => $program->kategori->nama_kategori ?? 'N/A',
+                ],
+                'donatur' => [
+                    'id_donatur' => $program->donatur->id_donatur ?? null,
+                    'nama' => $program->donatur->nama_organisasi ?? $program->donatur->nama_lengkap ?? 'N/A',
+                ],
+                'statistics' => [
+                    'total_penerima' => $totalPenerima,
+                    'penerima_selesai' => $penerimaSelesai,
+                ],
+                'schedules' => $schedules,
+                'recipients' => $recipients,
+                'images' => [], // Add image handling if needed
             ],
         ]);
     }
@@ -184,10 +237,10 @@ class RecipientController extends Controller
         $penerima = $request->user();
         $program = ProgramBantuan::findOrFail($id);
 
-        if ($penerima->status_verifikasi !== 'terverifikasi') {
+        if ($penerima->status_verifikasi !== 'disetujui') {
             return response()->json([
                 'success' => false,
-                'message' => 'Akun Anda belum terverifikasi. Silakan hubungi admin.',
+                'message' => 'Akun Anda belum disetujui. Silakan hubungi admin.',
             ], 403);
         }
 
@@ -245,9 +298,63 @@ class RecipientController extends Controller
     public function profile(Request $request)
     {
         $penerima = $request->user();
+        
+        // Check if user needs to fill application form
+        $needsApplication = $penerima->status_verifikasi === 'belum_mengajukan';
+
+        // Get programs that penerima has been assigned to
+        $programs = $penerima->penerimaPrograms()
+            ->with(['program.donatur', 'program.kategori'])
+            ->orderBy('tanggal_penetapan', 'desc')
+            ->get()
+            ->map(function($pp) {
+                $program = $pp->program;
+                return [
+                    'id' => $pp->id_penerima_program,
+                    'program_id' => $program->id_program,
+                    'title' => $program->nama_program,
+                    'donor' => $program->donatur->nama_organisasi ?? $program->donatur->nama_lengkap ?? 'N/A',
+                    'category' => $program->kategori->nama_kategori ?? 'N/A',
+                    'status' => $pp->status_penerimaan,
+                    'date' => $pp->tanggal_penetapan ? $pp->tanggal_penetapan->format('d M Y') : 'N/A',
+                ];
+            });
+
+        // Get documents (if application was submitted)
+        $documents = [];
+        if (!$needsApplication) {
+            $dokumenKK = $penerima->dokumenVerifikasi()
+                ->where('jenis_dokumen', 'Kartu Keluarga')
+                ->orderBy('tanggal_upload', 'desc')
+                ->first();
+            
+            $dokumenRumah = $penerima->dokumenVerifikasi()
+                ->where('jenis_dokumen', 'Foto Rumah')
+                ->orderBy('tanggal_upload', 'desc')
+                ->first();
+            
+            if ($dokumenKK) {
+                $documents[] = [
+                    'id' => 'kk_' . $dokumenKK->id_dokumen,
+                    'jenis_dokumen' => 'Foto Kartu Keluarga',
+                    'nama_file' => $dokumenKK->nama_file,
+                    'file_path' => $dokumenKK->path_file,
+                ];
+            }
+            
+            if ($dokumenRumah) {
+                $documents[] = [
+                    'id' => 'house_' . $dokumenRumah->id_dokumen,
+                    'jenis_dokumen' => 'Foto Rumah',
+                    'nama_file' => $dokumenRumah->nama_file,
+                    'file_path' => $dokumenRumah->path_file,
+                ];
+            }
+        }
 
         return response()->json([
             'success' => true,
+            'needs_application' => $needsApplication,
             'profile' => [
                 'id_penerima' => $penerima->id_penerima,
                 'no_kk' => $penerima->no_kk,
@@ -262,6 +369,8 @@ class RecipientController extends Controller
                 'status_verifikasi' => $penerima->status_verifikasi,
                 'created_at' => $penerima->created_at,
             ],
+            'programs' => $programs,
+            'documents' => $documents,
         ]);
     }
 
@@ -296,6 +405,77 @@ class RecipientController extends Controller
             'message' => 'Profil berhasil diperbarui',
             'profile' => $penerima,
         ]);
+    }
+
+    public function submitApplication(Request $request)
+    {
+        $penerima = $request->user();
+        
+        // Log incoming data for debugging
+        \Log::info('Submit Application Request', [
+            'all_data' => $request->all(),
+            'files' => $request->allFiles(),
+        ]);
+        
+        // Validate input
+        $validated = $request->validate([
+            'nama_kepala' => 'required|string|max:100',
+            'no_kk' => 'required|string|max:20',
+            'alamat' => 'required|string',
+            'nomor_telepon' => 'required|string|max:15',
+            'pekerjaan' => 'required|string|max:100',
+            'pekerjaan_istri' => 'nullable|string|max:100',
+            'penghasilan' => 'required|string',
+            'jumlah_tanggungan' => 'required|numeric|min:0',
+            'status_anak' => 'required|string|max:100',
+            'kk_file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
+            'house_file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
+        ]);
+
+        // Update penerima data and set status to pending (akan muncul di admin)
+        $penerima->update([
+            'nama_kepala' => $validated['nama_kepala'],
+            'no_kk' => $validated['no_kk'],
+            'alamat' => $validated['alamat'],
+            'nomor_telepon' => $validated['nomor_telepon'],
+            'pekerjaan' => $validated['pekerjaan'],
+            'pekerjaan_istri' => $validated['pekerjaan_istri'] ?? null,
+            'penghasilan' => $validated['penghasilan'],
+            'jumlah_tanggungan' => (int) $validated['jumlah_tanggungan'],
+            'status_anak' => $validated['status_anak'],
+            'status_verifikasi' => 'pending', // Set ke pending agar muncul di admin
+        ]);
+
+        // Handle file uploads if provided
+        if ($request->hasFile('kk_file')) {
+            $kkFile = $request->file('kk_file');
+            $kkPath = $kkFile->store('dokumen_verifikasi', 'public');
+            
+            $penerima->dokumenVerifikasi()->create([
+                'jenis_dokumen' => 'Kartu Keluarga',
+                'nama_file' => $kkFile->getClientOriginalName(),
+                'path_file' => $kkPath,
+                'ukuran_file' => $kkFile->getSize(),
+            ]);
+        }
+
+        if ($request->hasFile('house_file')) {
+            $houseFile = $request->file('house_file');
+            $housePath = $houseFile->store('dokumen_verifikasi', 'public');
+            
+            $penerima->dokumenVerifikasi()->create([
+                'jenis_dokumen' => 'Foto Rumah',
+                'nama_file' => $houseFile->getClientOriginalName(),
+                'path_file' => $housePath,
+                'ukuran_file' => $houseFile->getSize(),
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Pengajuan berhasil dikirim. Silakan menunggu verifikasi dari admin.',
+            'data' => $penerima,
+        ], 201);
     }
 
     public function uploadDocument(Request $request)

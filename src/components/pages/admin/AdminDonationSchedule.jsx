@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import NavbarAdmin from "../../layout/NavbarAdmin";
+import { apiFetch } from "../../../utils/api";
 import {
   ArrowLeft,
   Calendar as CalendarIcon,
@@ -13,6 +14,7 @@ import {
   Package,
   Wallet,
   XCircle,
+  Loader2,
 } from "lucide-react";
 
 function Chip({ children, className = "" }) {
@@ -106,41 +108,47 @@ function StageCard({ index, stage, onChange, onPickRecipients, onRemove, canRemo
 }
 
 function RecipientPickerModal({ open, onClose, onSave, initialSelected = [] }) {
-  // Seed recipients with richer data for filters and table
+  // Income tiers mapping
   const incomeTiers = [
-    { key: "lt500", label: "< Rp 500.000,-" },
-    { key: "500to1m", label: "Rp 500.000,- – Rp 1.000.000" },
-    { key: "1to2m", label: "Rp 1.000.000,- – Rp 2.000.000" },
-    { key: "gt2m", label: "Rp 2.000.000,- – Rp 3.000.000+" },
+    { key: "< Rp 500.000", label: "< Rp 500.000,-" },
+    { key: "Rp 500.000 - Rp 1.000.000", label: "Rp 500.000,- – Rp 1.000.000" },
+    { key: "Rp 1.000.000 - Rp 2.000.000", label: "Rp 1.000.000,- – Rp 2.000.000" },
+    { key: "Rp 2.000.000 - Rp 3.000.000", label: "Rp 2.000.000,- – Rp 3.000.000" },
+    { key: "> Rp 3.000.000", label: "> Rp 3.000.000+" },
   ];
 
-  const allRecipients = useMemo(() => {
-    const jobs = ["Buruh", "Petani", "Pedagang", "Ibu Rumah Tangga"]; 
-    const streets = ["Melati", "Mawar", "Kenanga", "Anggrek", "Flamboyan"];
-    return Array.from({ length: 40 }).map((_, i) => {
-      const tierIndex = i % incomeTiers.length;
-      return {
-        id: i + 1,
-        name: `Warga ${i + 1}`,
-        kk: `3174-45${String(i + 1).padStart(4, "0")}`,
-        nik: `3173${String(i + 1).padStart(8, "0")}`,
-        address: `Jl. ${streets[i % streets.length]} No. ${10 + i}, RT 0${(i % 4) + 1}/0${(i % 3) + 1}`,
-        dependents: (i % 5) + 0,
-        incomeTier: incomeTiers[tierIndex].key,
-        job: jobs[i % jobs.length],
-      };
-    });
-  }, []);
-
+  const [allRecipients, setAllRecipients] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(new Set(initialSelected));
-  const [tierFilter, setTierFilter] = useState(new Set()); // allow multiple selections
+  const [tierFilter, setTierFilter] = useState(new Set());
   const [minDeps, setMinDeps] = useState(0);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  React.useEffect(() => {
-    if (open) setSelected(new Set(initialSelected));
+  // Fetch recipients from API
+  useEffect(() => {
+    if (open) {
+      fetchRecipients();
+      setSelected(new Set(initialSelected));
+    }
   }, [open, initialSelected]);
+
+  const fetchRecipients = async () => {
+    setLoading(true);
+    try {
+      const response = await apiFetch('/api/admin/recipients', {
+        method: 'GET',
+      });
+      
+      if (response.success) {
+        setAllRecipients(response.data.data || response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching recipients:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const toggleTier = (key) => {
     const next = new Set(tierFilter);
@@ -150,9 +158,9 @@ function RecipientPickerModal({ open, onClose, onSave, initialSelected = [] }) {
 
   const filtered = allRecipients.filter((r) => {
     const q = query.trim().toLowerCase();
-    const bySearch = !q || r.name.toLowerCase().includes(q) || r.kk.includes(q) || r.nik.includes(q) || r.address.toLowerCase().includes(q);
-    const byTier = tierFilter.size === 0 || tierFilter.has(r.incomeTier);
-    const byDeps = Number(r.dependents) >= Number(minDeps || 0);
+    const bySearch = !q || r.nama_kepala?.toLowerCase().includes(q) || r.no_kk?.includes(q) || r.alamat?.toLowerCase().includes(q);
+    const byTier = tierFilter.size === 0 || tierFilter.has(r.penghasilan);
+    const byDeps = Number(r.jumlah_tanggungan || 0) >= Number(minDeps || 0);
     return bySearch && byTier && byDeps;
   });
 
@@ -164,7 +172,7 @@ function RecipientPickerModal({ open, onClose, onSave, initialSelected = [] }) {
 
   if (!open) return null;
 
-  const selectedList = allRecipients.filter((r) => selected.has(r.id));
+  const selectedList = allRecipients.filter((r) => selected.has(r.id_penerima));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
@@ -183,46 +191,42 @@ function RecipientPickerModal({ open, onClose, onSave, initialSelected = [] }) {
           {/* Selected table */}
           <section className="border border-slate-200 rounded-lg overflow-hidden">
             <div className="bg-slate-50 px-4 py-2 font-semibold text-[#0B2B5E]">Daftar Penerima Yang Dipilih</div>
-            <div className="overflow-auto max-h-56">
-              <table className="w-full text-sm">
-                <thead className="bg-white sticky top-0 shadow-sm">
-                  <tr className="text-slate-700">
-                    <th className="px-3 py-2 text-left w-10">No</th>
-                    <th className="px-3 py-2 text-left">NIK</th>
-                    <th className="px-3 py-2 text-left">Nama Penerima</th>
-                    <th className="px-3 py-2 text-left">Alamat</th>
-                    <th className="px-3 py-2 text-left">Tanggungan</th>
-                    <th className="px-3 py-2 text-left">Ket</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {selectedList.length === 0 ? (
-                    <tr>
-                      <td className="px-3 py-3 text-slate-500" colSpan={6}>Belum ada penerima dipilih.</td>
+            {loading ? (
+              <div className="p-8 flex items-center justify-center">
+                <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
+              </div>
+            ) : (
+              <div className="overflow-auto max-h-56">
+                <table className="w-full text-sm">
+                  <thead className="bg-white sticky top-0 shadow-sm">
+                    <tr className="text-slate-700">
+                      <th className="px-3 py-2 text-left w-10">No</th>
+                      <th className="px-3 py-2 text-left">No KK</th>
+                      <th className="px-3 py-2 text-left">Nama Penerima</th>
+                      <th className="px-3 py-2 text-left">Alamat</th>
+                      <th className="px-3 py-2 text-left">Tanggungan</th>
                     </tr>
-                  ) : (
-                    selectedList.map((r, idx) => (
-                      <tr key={r.id} className="hover:bg-slate-50">
-                        <td className="px-3 py-2">{idx + 1}</td>
-                        <td className="px-3 py-2">{r.nik}</td>
-                        <td className="px-3 py-2">{r.name}</td>
-                        <td className="px-3 py-2">{r.address}</td>
-                        <td className="px-3 py-2">{r.dependents}</td>
-                        <td className="px-3 py-2">
-                          <button
-                            type="button"
-                            className="px-2 py-1 text-xs rounded bg-emerald-600 text-white"
-                            onClick={() => {/* future: show full detail */}}
-                          >
-                            Detail
-                          </button>
-                        </td>
+                  </thead>
+                  <tbody className="divide-y">
+                    {selectedList.length === 0 ? (
+                      <tr>
+                        <td className="px-3 py-3 text-slate-500" colSpan={5}>Belum ada penerima dipilih.</td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ) : (
+                      selectedList.map((r, idx) => (
+                        <tr key={r.id_penerima} className="hover:bg-slate-50">
+                          <td className="px-3 py-2">{idx + 1}</td>
+                          <td className="px-3 py-2">{r.no_kk}</td>
+                          <td className="px-3 py-2">{r.nama_kepala}</td>
+                          <td className="px-3 py-2">{r.alamat}</td>
+                          <td className="px-3 py-2">{r.jumlah_tanggungan}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </section>
 
           {/* Filter + search */}
@@ -275,21 +279,29 @@ function RecipientPickerModal({ open, onClose, onSave, initialSelected = [] }) {
 
           {/* Result list */}
           <section className="max-h-72 overflow-auto border border-slate-200 rounded-lg divide-y">
-            {filtered.map((r) => (
-              <label key={r.id} className="flex items-start gap-3 p-3 hover:bg-slate-50">
-                <input
-                  type="checkbox"
-                  checked={selected.has(r.id)}
-                  onChange={() => toggle(r.id)}
-                  className="h-4 w-4 mt-1"
-                />
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-slate-900 truncate">{r.kk} – {r.name} – {r.address}</p>
-                  <p className="text-xs text-slate-600">Penghasilan: {incomeTiers.find((t) => t.key === r.incomeTier)?.label} | Tanggungan: {r.dependents} | Pekerjaan: {r.job}</p>
-                </div>
-              </label>
-            ))}
-            {filtered.length === 0 && <div className="p-4 text-sm text-slate-600">Tidak ada hasil.</div>}
+            {loading ? (
+              <div className="p-8 flex items-center justify-center">
+                <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
+              </div>
+            ) : (
+              <>
+                {filtered.map((r) => (
+                  <label key={r.id_penerima} className="flex items-start gap-3 p-3 hover:bg-slate-50">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(r.id_penerima)}
+                      onChange={() => toggle(r.id_penerima)}
+                      className="h-4 w-4 mt-1"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-900 truncate">{r.no_kk} – {r.nama_kepala} – {r.alamat}</p>
+                      <p className="text-xs text-slate-600">Penghasilan: {r.penghasilan || 'Tidak ada data'} | Tanggungan: {r.jumlah_tanggungan || 0} | Pekerjaan: {r.pekerjaan || '-'}</p>
+                    </div>
+                  </label>
+                ))}
+                {filtered.length === 0 && <div className="p-4 text-sm text-slate-600">Tidak ada hasil.</div>}
+              </>
+            )}
           </section>
 
           <div className="flex items-center justify-end">
@@ -362,31 +374,17 @@ export default function AdminDonationSchedule() {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  // Mock donation detail — in real app fetch by id
-  const donation = {
-    id,
-    title: "Bantuan Alat Sekolah untuk Anak Kurang Mampu",
-    type: "Barang",
-    categories: ["Barang", "Pendidikan & Sosial"],
-    status: "Pending",
-    start: "1 Oktober 2025",
-    end: "30 Desember 2025",
-    amount: undefined,
-    goods:
-      "satu paket alat sekolah baru (tas, tempat pensil, pulpen, pensil, penggaris, penghapus, dll)",
-    criteria:
-      "Anak-anak yang menempuh pendidikan sekolah dasar (SD), menengah (SMP), dan atas pada keluarga berpenghasilan rendah",
-    description:
-      "Penyaluran ditujukan kepada anak dengan jenjang pendidikan sekolah yang lebih rendah dan yang memiliki saudara banyak",
-  };
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [donation, setDonation] = useState(null);
 
   // Editable meta fields for the program window and notes
   const [meta, setMeta] = useState({
-    startDate: "2025-10-01",
-    endDate: "2025-12-30",
-    criteria: donation.criteria,
-    description: donation.description,
-    donationValue: donation.type === "Uang" ? donation.amount || "" : donation.goods || "",
+    startDate: "",
+    endDate: "",
+    criteria: "",
+    description: "",
+    donationValue: "",
   });
 
   const [stages, setStages] = useState([
@@ -394,6 +392,95 @@ export default function AdminDonationSchedule() {
   ]);
 
   const [picker, setPicker] = useState({ open: false, index: 0 });
+
+  // Fetch program details
+  useEffect(() => {
+    // Reset states when ID changes
+    setDonation(null);
+    setMeta({
+      startDate: "",
+      endDate: "",
+      criteria: "",
+      description: "",
+      donationValue: "",
+    });
+    setStages([
+      { date: "", time: "", location: "", note: "", recipients: [] },
+    ]);
+    
+    // Fetch new program details
+    if (id) {
+      fetchProgramDetails();
+    }
+  }, [id]); // Re-run when ID changes
+
+  const fetchProgramDetails = async () => {
+    setLoading(true);
+    try {
+      console.log('=== FETCHING PROGRAM DETAILS ===');
+      console.log('Program ID from URL params:', id);
+      console.log('Full API URL:', `/api/admin/programs/${id}`);
+      
+      const response = await apiFetch(`/api/admin/programs/${id}`, {
+        method: 'GET',
+      });
+      
+      console.log('API Response:', response);
+      
+      if (response.success) {
+        const program = response.data;
+        console.log('Program Data Received:', {
+          id: program.id_program,
+          nama: program.nama_program,
+          jenis: program.jenis_bantuan,
+          jumlah: program.jumlah_bantuan,
+          tanggal_mulai: program.tanggal_mulai,
+          tanggal_selesai: program.tanggal_selesai,
+        });
+        
+        setDonation(program);
+        
+        // Format dates properly (handle both YYYY-MM-DD and object formats)
+        const formatDate = (date) => {
+          if (!date) return "";
+          if (typeof date === 'string') return date.split(' ')[0]; // Get YYYY-MM-DD part
+          if (date.date) return date.date.split(' ')[0]; // Handle {date: "..."} format
+          return "";
+        };
+        
+        // Prepare donation value display
+        let donationValueText = "";
+        if (program.jenis_bantuan === 'uang') {
+          // Format currency for display
+          const amount = parseFloat(program.jumlah_bantuan) || 0;
+          donationValueText = new Intl.NumberFormat('id-ID', {
+            style: 'currency',
+            currency: 'IDR',
+            minimumFractionDigits: 0
+          }).format(amount);
+        } else {
+          // For goods, use deskripsi or a description of the items
+          donationValueText = program.deskripsi || program.keterangan || "";
+        }
+        
+        console.log('Formatted donation value:', donationValueText);
+        
+        // Initialize meta with program data
+        setMeta({
+          startDate: formatDate(program.tanggal_mulai),
+          endDate: formatDate(program.tanggal_selesai),
+          criteria: program.keterangan || "",
+          description: program.deskripsi || "",
+          donationValue: donationValueText,
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching program:', error);
+      alert('Gagal memuat data program');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const updateStage = (idx, next) => {
     setStages((arr) => arr.map((s, i) => (i === idx ? next : s)));
@@ -409,10 +496,78 @@ export default function AdminDonationSchedule() {
     closePicker();
   };
 
-  const onSaveSchedule = () => {
-    // Here you'd call API. For now, just navigate back.
-    navigate("/admin/donasi");
+  const onSaveSchedule = async () => {
+    // Validate stages
+    for (let i = 0; i < stages.length; i++) {
+      const stage = stages[i];
+      if (!stage.date || !stage.time || !stage.location) {
+        alert(`Tahap ${i + 1}: Harap lengkapi tanggal, jam, dan lokasi penyaluran`);
+        return;
+      }
+      if (stage.recipients.length === 0) {
+        alert(`Tahap ${i + 1}: Harap pilih minimal 1 penerima`);
+        return;
+      }
+    }
+
+    if (!meta.startDate || !meta.endDate) {
+      alert('Harap lengkapi tanggal mulai dan selesai program');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const response = await apiFetch(`/api/admin/programs/${id}/schedule`, {
+        method: 'POST',
+        body: JSON.stringify({
+          meta,
+          stages,
+        }),
+      });
+
+      if (response.success) {
+        alert('Jadwal berhasil disimpan dan program diaktifkan!');
+        navigate('/admin/donasi');
+      } else {
+        alert('Gagal menyimpan jadwal: ' + (response.message || 'Terjadi kesalahan'));
+      }
+    } catch (error) {
+      console.error('Error saving schedule:', error);
+      alert('Gagal menyimpan jadwal. Silakan coba lagi.');
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#E6EFFA] flex flex-col">
+        <NavbarAdmin />
+        <main className="flex-1 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+        </main>
+      </div>
+    );
+  }
+
+  if (!donation) {
+    return (
+      <div className="min-h-screen bg-[#E6EFFA] flex flex-col">
+        <NavbarAdmin />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-slate-600">Program tidak ditemukan</p>
+            <button
+              onClick={() => navigate('/admin/donasi')}
+              className="mt-4 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700"
+            >
+              Kembali
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#E6EFFA] flex flex-col">
@@ -438,14 +593,17 @@ export default function AdminDonationSchedule() {
             <div className="mt-4 space-y-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-900 truncate">{donation.title}</p>
+                  <p className="text-sm font-semibold text-slate-900 truncate">{donation.nama_program}</p>
                   <div className="mt-1 flex flex-wrap gap-2">
-                    {donation.categories.map((c) => (
-                      <Chip key={c} className="bg-indigo-50 text-indigo-700 border border-indigo-200">{c}</Chip>
-                    ))}
+                    <Chip className="bg-indigo-50 text-indigo-700 border border-indigo-200">{donation.kategori?.nama_kategori || 'Kategori'}</Chip>
+                    <Chip className="bg-indigo-50 text-indigo-700 border border-indigo-200">
+                      {donation.jenis_bantuan === 'uang' ? 'Uang' : 'Barang'}
+                    </Chip>
                   </div>
                 </div>
-                <Chip className="bg-amber-100 text-amber-800 border border-amber-200">Pending</Chip>
+                <Chip className="bg-amber-100 text-amber-800 border border-amber-200">
+                  {donation.status === 'pending' ? 'Pending' : donation.status === 'aktif' ? 'Aktif' : donation.status === 'selesai' ? 'Selesai' : 'Ditunda'}
+                </Chip>
               </div>
 
               <div className="grid sm:grid-cols-2 gap-3">
@@ -478,29 +636,16 @@ export default function AdminDonationSchedule() {
               <div className="grid sm:grid-cols-2 gap-3">
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
                   <div className="flex items-center gap-2 text-slate-800 font-medium">
-                    {donation.type === "Uang" ? (
+                    {donation.jenis_bantuan === 'uang' ? (
                       <Wallet className="w-4 h-4 text-emerald-600" />
                     ) : (
                       <Package className="w-4 h-4 text-emerald-600" />
                     )}
                     Jumlah Donasi
                   </div>
-                  {donation.type === "Uang" ? (
-                    <input
-                      className="mt-2 w-full rounded-lg border border-slate-300 bg-white text-sm p-2 focus:outline-none focus:ring-2 focus:ring-green-500"
-                      placeholder="cth: Rp 25.000.000,-"
-                      value={meta.donationValue}
-                      onChange={(e) => setMeta((m) => ({ ...m, donationValue: e.target.value }))}
-                    />
-                  ) : (
-                    <textarea
-                      className="mt-2 w-full rounded-lg border border-slate-300 bg-white text-sm p-2 focus:outline-none focus:ring-2 focus:ring-green-500"
-                      rows={3}
-                      placeholder="cth: satu paket alat sekolah (tas, pensil, pulpen, dll)"
-                      value={meta.donationValue}
-                      onChange={(e) => setMeta((m) => ({ ...m, donationValue: e.target.value }))}
-                    />
-                  )}
+                  <div className="mt-2 w-full rounded-lg border border-slate-300 bg-white text-sm p-2">
+                    {meta.donationValue || 'Tidak ada informasi'}
+                  </div>
                 </div>
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
                   <div className="flex items-center gap-2 text-slate-800 font-medium">
@@ -559,15 +704,18 @@ export default function AdminDonationSchedule() {
         <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-between">
           <button
             onClick={() => navigate("/admin/donasi")}
-            className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 text-sm font-medium"
+            disabled={saving}
+            className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 text-sm font-medium disabled:opacity-50"
           >
             Batal Simpan Penjadwalan
           </button>
           <button
             onClick={onSaveSchedule}
-            className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700"
+            disabled={saving}
+            className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 inline-flex items-center justify-center gap-2"
           >
-            Simpan Penjadwalan dan Aktifkan Program
+            {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+            {saving ? 'Menyimpan...' : 'Simpan Penjadwalan dan Aktifkan Program'}
           </button>
         </div>
       </main>

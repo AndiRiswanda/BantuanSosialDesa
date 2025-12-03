@@ -56,7 +56,7 @@ export default function AdminVerificationDashboard() {
       setError(null);
       
       if (active === "pengajuan") {
-        const response = await adminAPI.getPendingRecipients({ search: query });
+         const response = await adminAPI.getPendingRecipients({ search: query });
         if (response.success && response.data) {
           const data = response.data.data || response.data;
           setPendingRecipients(Array.isArray(data) ? data : []);

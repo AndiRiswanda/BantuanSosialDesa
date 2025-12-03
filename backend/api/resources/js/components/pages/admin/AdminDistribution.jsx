@@ -1,78 +1,149 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import NavbarAdmin from "../../layout/NavbarAdmin";
-import { Loader2 } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { adminAPI } from "../../../utils/api";
 
-function StatusBadge({ status }) {
-  const statusMap = {
-    'dijadwalkan': { bg: 'bg-amber-100', text: 'text-amber-800', label: 'Dijadwalkan' },
-    'selesai': { bg: 'bg-emerald-100', text: 'text-emerald-700', label: 'Selesai' },
-    'dibatalkan': { bg: 'bg-red-100', text: 'text-red-700', label: 'Dibatalkan' },
-  };
+function Pagination({ currentPage, lastPage, onPageChange }) {
+  const pages = [];
+  const maxVisible = 5;
   
-  const style = statusMap[status] || statusMap['dijadwalkan'];
+  let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+  let endPage = Math.min(lastPage, startPage + maxVisible - 1);
+  
+  if (endPage - startPage + 1 < maxVisible) {
+    startPage = Math.max(1, endPage - maxVisible + 1);
+  }
+  
+  for (let i = startPage; i <= endPage; i++) {
+    pages.push(i);
+  }
   
   return (
-    <span
-      className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${style.bg} ${style.text}`}
-    >
-      {style.label}
-    </span>
-  );
-}
-
-function CategoryChip({ label }) {
-  return (
-    <span className="inline-flex px-2.5 py-0.5 rounded-full text-[11px] font-semibold border border-slate-300 bg-slate-50 text-slate-700">
-      {label}
-    </span>
+    <div className="flex items-center justify-center gap-2 py-4">
+      <button
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        className="p-2 rounded-lg border border-slate-300 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+      >
+        <ChevronLeft className="w-5 h-5 text-slate-600" />
+      </button>
+      
+      {startPage > 1 && (
+        <>
+          <button
+            onClick={() => onPageChange(1)}
+            className="px-3 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 text-sm font-medium text-slate-700"
+          >
+            1
+          </button>
+          {startPage > 2 && <span className="text-slate-400">...</span>}
+        </>
+      )}
+      
+      {pages.map(page => (
+        <button
+          key={page}
+          onClick={() => onPageChange(page)}
+          className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+            page === currentPage
+              ? 'bg-emerald-600 text-white'
+              : 'border border-slate-300 text-slate-700 hover:bg-slate-50'
+          }`}
+        >
+          {page}
+        </button>
+      ))}
+      
+      {endPage < lastPage && (
+        <>
+          {endPage < lastPage - 1 && <span className="text-slate-400">...</span>}
+          <button
+            onClick={() => onPageChange(lastPage)}
+            className="px-3 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 text-sm font-medium text-slate-700"
+          >
+            {lastPage}
+          </button>
+        </>
+      )}
+      
+      <button
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === lastPage}
+        className="p-2 rounded-lg border border-slate-300 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+      >
+        <ChevronRight className="w-5 h-5 text-slate-600" />
+      </button>
+    </div>
   );
 }
 
 export default function AdminDistribution() {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
-  const [transactions, setTransactions] = useState([]);
+  const [programs, setPrograms] = useState([]);
+  const [pagination, setPagination] = useState({
+    current_page: 1,
+    last_page: 1,
+    total: 0
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    loadTransactions();
+    loadPrograms(pagination.current_page);
   }, []);
 
-  const loadTransactions = async () => {
+  const loadPrograms = async (page = 1) => {
     try {
       setLoading(true);
       setError(null);
       
-      const params = {};
-      if (query.trim()) {
-        params.search = query.trim();
-      }
-      
-      const response = await adminAPI.getTransaksi(params);
-      console.log("Transactions data:", response);
+      const response = await adminAPI.getPrograms();
+      console.log("Programs data:", response);
       
       if (response.success && response.data) {
-        const data = response.data.data || response.data;
-        setTransactions(Array.isArray(data) ? data : []);
+        const responseData = response.data.data || response.data;
+        
+        // Filter only active or scheduled programs
+        const activePrograms = Array.isArray(responseData) 
+          ? responseData.filter(p => p.status === 'aktif' || p.status === 'terjadwal')
+          : [];
+        
+        // Manual pagination
+        const perPage = 10;
+        const total = activePrograms.length;
+        const lastPage = Math.ceil(total / perPage);
+        const start = (page - 1) * perPage;
+        const paginatedPrograms = activePrograms.slice(start, start + perPage);
+        
+        setPrograms(paginatedPrograms);
+        setPagination({
+          current_page: page,
+          last_page: lastPage,
+          total: total
+        });
       } else {
-        setTransactions([]);
+        setPrograms([]);
       }
     } catch (err) {
-      console.error("Error loading transactions:", err);
-      setError(err.message || "Gagal memuat data transaksi");
-      setTransactions([]);
+      console.error("Error loading programs:", err);
+      setError(err.message || "Gagal memuat data program");
+      setPrograms([]);
     } finally {
       setLoading(false);
     }
   };
 
+  const handlePageChange = (page) => {
+    setPagination(prev => ({ ...prev, current_page: page }));
+    loadPrograms(page);
+  };
+
   // Search with debounce
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      loadTransactions();
+      loadPrograms(1); // Reset to page 1 on search
     }, 500);
     
     return () => clearTimeout(timeoutId);
@@ -81,37 +152,42 @@ export default function AdminDistribution() {
   const formatDate = (dateString) => {
     if (!dateString) return '-';
     const date = new Date(dateString);
-    return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+    const month = date.toLocaleDateString('id-ID', { month: 'long' });
+    const year = date.getFullYear();
+    return `${month} ${year}`;
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  const formatJumlah = (transaction) => {
-    const jenisBantuan = transaction.penerima_program?.program?.jenis_bantuan;
-    const jumlah = transaction.jumlah_diterima;
+  const formatPeriode = (program) => {
+    if (!program.tanggal_mulai || !program.tanggal_selesai) return '-';
+    const start = new Date(program.tanggal_mulai);
+    const end = new Date(program.tanggal_selesai);
+    const startMonth = start.toLocaleDateString('id-ID', { month: 'long' });
+    const endMonth = end.toLocaleDateString('id-ID', { month: 'long' });
+    const year = end.getFullYear();
     
-    if (jenisBantuan === 'barang') {
-      // Untuk bantuan barang, tampilkan sebagai jumlah paket/unit (integer saja, tanpa desimal)
-      return `${parseInt(jumlah)} Paket`;
-    } else {
-      // Untuk bantuan uang, tampilkan format rupiah
-      return formatCurrency(jumlah);
+    if (startMonth === endMonth) {
+      return `${startMonth} ${year}`;
     }
+    return `${startMonth} - ${endMonth} ${year}`;
   };
+
+  const filteredPrograms = programs.filter(program => {
+    if (!query.trim()) return true;
+    const searchLower = query.toLowerCase();
+    return (
+      program.nama_program?.toLowerCase().includes(searchLower) ||
+      program.deskripsi?.toLowerCase().includes(searchLower) ||
+      program.kategori?.nama_kategori?.toLowerCase().includes(searchLower)
+    );
+  });
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#E6EFFA]">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-blue-50">
       <NavbarAdmin />
       <main className="flex-1 px-4 sm:px-6 lg:px-20 py-6 lg:py-10">
-        <header className="text-center mb-6">
-          <h1 className="text-[#0B2B5E] font-semibold text-xl">Penyaluran Bantuan ke Warga</h1>
-          <p className="text-xs text-slate-600 mt-1">Konfirmasi penerima, tandai status penyaluran, dan unggah dokumentasi transparansi.</p>
+        <header className="text-center mb-8">
+          <h1 className="text-slate-800 font-bold text-3xl mb-2">Penyaluran Bantuan ke Warga</h1>
+          <p className="text-base text-slate-600">Konfirmasi penerima, tandai status penyaluran, dan unggah dokumentasi transparansi.</p>
         </header>
 
         {error && (
@@ -121,7 +197,7 @@ export default function AdminDistribution() {
               <div className="text-red-800 font-semibold">Gagal Memuat Data</div>
               <div className="text-red-700 text-sm">{error}</div>
               <button 
-                onClick={loadTransactions}
+                onClick={loadPrograms}
                 className="mt-2 text-sm text-red-600 hover:text-red-700 underline"
               >
                 Coba Lagi
@@ -130,70 +206,61 @@ export default function AdminDistribution() {
           </div>
         )}
 
-        <div className="mb-4 max-w-md">
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Cari program, penerima, atau lokasi"
-            className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
-          />
-        </div>
-
         {loading && (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
-            <span className="ml-3 text-slate-600">Memuat data transaksi...</span>
+            <span className="ml-3 text-slate-600">Memuat data program...</span>
           </div>
         )}
 
         {!loading && (
           <>
             {/* Desktop table */}
-            <div className="hidden md:block overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-200">
+            <div className="hidden md:block overflow-x-auto bg-white rounded-xl shadow-lg border border-slate-200">
               <table className="min-w-full text-sm">
                 <thead>
-                  <tr className="bg-emerald-700 text-white">
-                    <th className="px-4 py-3 text-left">Program</th>
-                    <th className="px-4 py-3 text-left">Penerima</th>
-                    <th className="px-4 py-3 text-left">Jumlah</th>
-                    <th className="px-4 py-3 text-left">Tanggal</th>
-                    <th className="px-4 py-3 text-left">Lokasi</th>
-                    <th className="px-4 py-3 text-left">Status</th>
+                  <tr className="bg-emerald-600 text-white">
+                    <th className="px-6 py-4 text-left font-bold uppercase tracking-wider">Nama Program</th>
+                    <th className="px-6 py-4 text-left font-bold uppercase tracking-wider">Deskripsi</th>
+                    <th className="px-6 py-4 text-left font-bold uppercase tracking-wider">Kategori</th>
+                    <th className="px-6 py-4 text-left font-bold uppercase tracking-wider">Periode</th>
+                    <th className="px-6 py-4 text-left font-bold uppercase tracking-wider">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
-                  {transactions.map((transaction) => (
-                    <tr key={transaction.id_transaksi} className="hover:bg-slate-50">
-                      <td className="align-top px-4 py-3 text-slate-900 font-medium">
-                        {transaction.penerima_program?.program?.nama_program || '-'}
+                  {filteredPrograms.map((program) => (
+                    <tr key={program.id_program} className="hover:bg-slate-50 transition-colors">
+                      <td className="align-top px-6 py-4 text-slate-800 font-medium">
+                        {program.nama_program || '-'}
                       </td>
-                      <td className="align-top px-4 py-3 text-slate-700">
-                        {transaction.penerima_program?.penerima?.nama_kepala || '-'}
+                      <td className="align-top px-6 py-4 text-slate-600">
+                        <div className="max-w-md">
+                          {program.deskripsi || '-'}
+                        </div>
                       </td>
-                      <td className="align-top px-4 py-3 text-slate-900 font-semibold">
-                        {formatJumlah(transaction)}
+                      <td className="align-top px-6 py-4 text-slate-700">
+                        {program.jenis_bantuan === 'uang' ? 'Uang' : program.jenis_bantuan === 'barang' ? 'Barang' : '-'}
                       </td>
-                      <td className="align-top px-4 py-3 whitespace-nowrap text-slate-900">
-                        {formatDate(transaction.tanggal_penyaluran)}
+                      <td className="align-top px-6 py-4 whitespace-nowrap text-slate-700">
+                        {formatPeriode(program)}
                       </td>
-                      <td className="align-top px-4 py-3 text-slate-700 text-xs">
-                        {transaction.lokasi_penyaluran || '-'}
-                      </td>
-                      <td className="align-top px-4 py-3">
+                      <td className="align-top px-6 py-4">
                         <button
-                          type="button"
-                          onClick={() => navigate(`/admin/transaksi/${transaction.id_transaksi}`)}
-                          className="focus:outline-none"
+                          onClick={() => navigate(`/admin/penyaluran/${program.id_program}/verifikasi`)}
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 hover:shadow-md transition-all duration-200 active:scale-95 text-xs"
                         >
-                          <StatusBadge status={transaction.status_penyaluran} />
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Verifikasi
                         </button>
                       </td>
                     </tr>
                   ))}
-                  {transactions.length === 0 && (
+                  {filteredPrograms.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-slate-600">
-                        Tidak ada data transaksi penyaluran.
+                      <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                        {query ? 'Tidak ada program yang sesuai dengan pencarian.' : 'Belum ada program penyaluran aktif.'}
                       </td>
                     </tr>
                   )}
@@ -201,38 +268,63 @@ export default function AdminDistribution() {
               </table>
             </div>
 
+            {/* Pagination for Desktop */}
+            <div className="hidden md:block bg-white rounded-b-xl border-t border-slate-200">
+              <Pagination 
+                currentPage={pagination.current_page}
+                lastPage={pagination.last_page}
+                onPageChange={handlePageChange}
+              />
+            </div>
+
             {/* Mobile cards */}
             <div className="md:hidden space-y-4">
-              {transactions.map((transaction) => (
+              {filteredPrograms.map((program) => (
                 <section 
-                  key={transaction.id_transaksi} 
+                  key={program.id_program} 
                   className="bg-white rounded-xl shadow-sm border border-slate-200 p-4"
-                  onClick={() => navigate(`/admin/transaksi/${transaction.id_transaksi}`)}
                 >
-                  <h3 className="text-slate-900 font-semibold">
-                    {transaction.penerima_program?.program?.nama_program || '-'}
+                  <h3 className="text-slate-900 font-semibold mb-2">
+                    {program.nama_program || '-'}
                   </h3>
-                  <p className="mt-1 text-sm text-slate-700">
-                    Penerima: {transaction.penerima_program?.penerima?.nama_kepala || '-'}
+                  <p className="text-sm text-slate-600 mb-2">
+                    {program.deskripsi || '-'}
                   </p>
-                  <div className="mt-2 text-sm">
-                    <p className="text-slate-900 font-semibold">
-                      {formatJumlah(transaction)}
+                  <div className="text-sm space-y-1 mb-3">
+                    <p className="text-slate-700">
+                      <span className="font-medium">Kategori:</span> {program.jenis_bantuan === 'uang' ? 'Uang' : program.jenis_bantuan === 'barang' ? 'Barang' : '-'}
                     </p>
-                    <p className="text-xs text-slate-600 mt-1">
-                      {formatDate(transaction.tanggal_penyaluran)} • {transaction.lokasi_penyaluran || '-'}
+                    <p className="text-slate-700">
+                      <span className="font-medium">Periode:</span> {formatPeriode(program)}
                     </p>
                   </div>
-                  <div className="mt-3">
-                    <StatusBadge status={transaction.status_penyaluran} />
-                  </div>
+                  <button
+                    onClick={() => navigate(`/admin/penyaluran/${program.id_program}/verifikasi`)}
+                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 hover:shadow-md transition-all duration-200 active:scale-95 text-sm"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Verifikasi
+                  </button>
                 </section>
               ))}
-              {transactions.length === 0 && (
+              {filteredPrograms.length === 0 && (
                 <div className="text-center bg-white rounded-xl shadow-sm border border-slate-200 py-12">
-                  <p className="text-slate-600 text-sm">Tidak ada data transaksi penyaluran.</p>
+                  <p className="text-slate-600 text-sm">
+                    {query ? 'Tidak ada program yang sesuai dengan pencarian.' : 'Belum ada program penyaluran aktif.'}
+                  </p>
                 </div>
               )}
+              
+              {/* Pagination for Mobile */}
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+                <Pagination 
+                  currentPage={pagination.current_page}
+                  lastPage={pagination.last_page}
+                  onPageChange={handlePageChange}
+                />
+              </div>
             </div>
           </>
         )}

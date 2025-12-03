@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import NavbarAdmin from "../../layout/NavbarAdmin";
 import { Calendar, Clock4, Filter, Package, Search, Wallet, XCircle, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { adminAPI } from "../../../utils/api";
@@ -83,7 +83,13 @@ function ScheduledCard({ item, onDetail }) {
 
       <div className="flex flex-col sm:flex-row gap-2 justify-between">
         <button 
-          onClick={() => onDetail(item.id_program)} 
+          onClick={() => {
+            console.log('=== SCHEDULED CARD DETAIL CLICK ===');
+            console.log('Program ID:', item.id_program);
+            console.log('Program Name:', item.nama_program);
+            console.log('Will navigate to: /admin/donasi/' + item.id_program + '/detail-jadwal');
+            onDetail(item.id_program);
+          }}
           className="px-4 py-2 rounded-md border border-slate-300 bg-white text-slate-800 font-medium hover:bg-slate-50"
         >
           Detail Program
@@ -220,6 +226,7 @@ function PendingCard({ item, onApprove, onReject, onDetail, onSchedule, onViewPr
 export default function AdminDonations() {
   const [tab, setTab] = useState("pending"); // "pending" | "terjadwal"
   const navigate = useNavigate();
+  const location = useLocation();
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -227,7 +234,30 @@ export default function AdminDonations() {
   const [activePrograms, setActivePrograms] = useState([]);
 
   useEffect(() => {
+    console.log('🔄 Component mounted or location.state changed');
     loadData();
+    
+    // Check if we're coming back from scheduling page
+    if (location.state?.switchToTab) {
+      console.log('🔄 Switching to tab:', location.state.switchToTab);
+      setTab(location.state.switchToTab);
+      // Clear the state
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+  
+  // Add window focus listener separately to avoid infinite loop
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log('🔄 Window focused, reloading data...');
+      loadData();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   const loadData = async () => {
@@ -256,15 +286,34 @@ export default function AdminDonations() {
         console.log('✅ Pending programs loaded:', pendingData.length);
       }
       
-      // Load active programs
-      console.log('📅 Fetching active programs...');
-      const activeResponse = await adminAPI.getPrograms({ status: 'aktif' });
+      // Load active programs (terjadwal)
+      console.log('📅 Fetching active/scheduled programs...');
+      const activeResponse = await adminAPI.getPrograms({ status: 'aktif', per_page: 100 });
       console.log('📅 Active response:', activeResponse);
+      console.log('📅 Active response structure:', {
+        success: activeResponse.success,
+        hasData: !!activeResponse.data,
+        dataKeys: activeResponse.data ? Object.keys(activeResponse.data) : [],
+        dataType: typeof activeResponse.data
+      });
       
       if (activeResponse.success && activeResponse.data) {
-        const activeData = activeResponse.data.data || activeResponse.data;
+        // Handle paginated response
+        let activeData;
+        if (activeResponse.data.data) {
+          // Paginated response
+          activeData = activeResponse.data.data;
+          console.log('📅 Paginated data detected, total:', activeResponse.data.total);
+        } else if (Array.isArray(activeResponse.data)) {
+          // Direct array response
+          activeData = activeResponse.data;
+        } else {
+          activeData = [];
+        }
+        
         setActivePrograms(Array.isArray(activeData) ? activeData : []);
-        console.log('✅ Active programs loaded:', activeData.length);
+        console.log('✅ Active/scheduled programs loaded:', activeData.length);
+        console.log('✅ Sample active program:', activeData[0]);
       }
     } catch (err) {
       console.error("❌ Error loading programs:", err);
@@ -334,6 +383,13 @@ export default function AdminDonations() {
 
   const handleDetailProgram = (programId) => {
     navigate(`/admin/donasi/${programId}`);
+  };
+
+  const handleScheduledProgramDetail = (programId) => {
+    console.log('=== HANDLE SCHEDULED PROGRAM DETAIL ===');
+    console.log('Program ID:', programId);
+    console.log('Navigating to:', `/admin/donasi/${programId}/detail-jadwal`);
+    navigate(`/admin/donasi/${programId}/detail-jadwal`);
   };
 
   const handleScheduleProgram = (programId) => {
@@ -449,9 +505,9 @@ export default function AdminDonations() {
                   />
                 ) : (
                   <ScheduledCard 
-                    key={d.id} 
+                    key={d.id_program || d.id} 
                     item={d}
-                    onDetail={handleDetailProgram}
+                    onDetail={handleScheduledProgramDetail}
                   />
                 )
               )

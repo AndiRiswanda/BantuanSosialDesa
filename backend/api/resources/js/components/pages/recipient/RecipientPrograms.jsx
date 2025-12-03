@@ -113,6 +113,7 @@ function ProgramCard({ item }) {
 }
 
 export default function RecipientPrograms() {
+  const navigate = useNavigate();
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

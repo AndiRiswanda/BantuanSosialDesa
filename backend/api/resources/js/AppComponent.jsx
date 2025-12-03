@@ -5,6 +5,8 @@ import Navbar from "./components/layout/Navbar";
 import HeroSection from "./components/layout/HeroSection";
 import FeaturesSection from "./components/layout/FeaturesSection";
 import PenyaluranPage from "./components/pages/PenyaluranPage";
+import PenyaluranPublicPage from "./components/pages/PenyaluranPublicPage";
+import VerifikasiPenyaluranPage from "./components/pages/VerifikasiPenyaluranPage";
 import LoginSelection from "./components/auth/LoginSelection";
 import PengaduanSection from "./components/pages/PengaduanSection";
 import DonorLoginPage from "./components/auth/donatur/DonorLoginPage";
@@ -30,6 +32,7 @@ import AdminPrograms from "./components/pages/admin/AdminPrograms";
 import AdminDonations from "./components/pages/admin/AdminDonations";
 import AdminDonationSchedule from "./components/pages/admin/AdminDonationSchedule";
 import AdminDonationEdit from "./components/pages/admin/AdminDonationEdit";
+import AdminScheduledProgramDetail from "./components/pages/admin/AdminScheduledProgramDetail";
 import AdminDistribution from "./components/pages/admin/AdminDistribution";
 import AdminDistributionVerify from "./components/pages/admin/AdminDistributionVerify";
 import AdminVerificationDashboard from "./components/pages/admin/AdminVerificationDashboard";
@@ -60,7 +63,8 @@ function App() {
         <div className="flex-1">
           <Routes>
             <Route path="/" element={<HomePage />} />
-            <Route path="/penyaluran" element={<PenyaluranPage />} />
+            <Route path="/penyaluran" element={<PenyaluranPublicPage />} />
+            <Route path="/penyaluran/verifikasi/:programId" element={<VerifikasiPenyaluranPage />} />
             <Route path="/pengaduan" element={<PengaduanSection />} />
             <Route path="/login" element={<LoginSelection />} />
             <Route path="/login/admin" element={<AdminLoginPage />} />
@@ -92,9 +96,10 @@ function App() {
             <Route path="/admin/program" element={<ProtectedRoute allowedTypes={['admin']}><AdminPrograms /></ProtectedRoute>} />
             <Route path="/admin/programs/:id" element={<ProtectedRoute allowedTypes={['admin']}><AdminProgramDetail /></ProtectedRoute>} />
             <Route path="/admin/donasi" element={<ProtectedRoute allowedTypes={['admin']}><AdminDonations /></ProtectedRoute>} />
-            <Route path="/admin/donasi/:id" element={<ProtectedRoute allowedTypes={['admin']}><AdminDonationDetail /></ProtectedRoute>} />
+            <Route path="/admin/donasi/:id/detail-jadwal" element={<ProtectedRoute allowedTypes={['admin']}><AdminScheduledProgramDetail /></ProtectedRoute>} />
             <Route path="/admin/donasi/:id/jadwal" element={<ProtectedRoute allowedTypes={['admin']}><AdminDonationSchedule /></ProtectedRoute>} />
             <Route path="/admin/donasi/:id/edit" element={<ProtectedRoute allowedTypes={['admin']}><AdminDonationEdit /></ProtectedRoute>} />
+            <Route path="/admin/donasi/:id" element={<ProtectedRoute allowedTypes={['admin']}><AdminDonationDetail /></ProtectedRoute>} />
             <Route path="/admin/penyaluran" element={<ProtectedRoute allowedTypes={['admin']}><AdminDistribution /></ProtectedRoute>} />
             <Route path="/admin/penyaluran/:id/verifikasi" element={<ProtectedRoute allowedTypes={['admin']}><AdminDistributionVerify /></ProtectedRoute>} />
             <Route path="/admin/verifikasi" element={<ProtectedRoute allowedTypes={['admin']}><AdminVerificationDashboard /></ProtectedRoute>} />

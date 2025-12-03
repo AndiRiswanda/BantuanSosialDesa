@@ -9,9 +9,11 @@ use App\Models\PenerimaProgram;
 use App\Models\TransaksiPenyaluran;
 use App\Models\KategoriBantuan;
 use App\Models\LaporanTransparansi;
+use App\Models\DokumentasiProgram;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class AdminController extends Controller
@@ -21,7 +23,7 @@ class AdminController extends Controller
         // Statistics
         $stats = [
             'total_donors' => Donatur::where('status', 'aktif')->count(),
-            'total_recipients' => Penerima::where('status_verifikasi', 'terverifikasi')->count(),
+            'total_recipients' => Penerima::where('status_verifikasi', 'disetujui')->count(),
             'total_programs' => ProgramBantuan::count(),
             'active_programs' => ProgramBantuan::where('status', 'aktif')->count(),
             'pending_programs' => ProgramBantuan::where('status', 'pending')->count(),
@@ -422,7 +424,7 @@ class AdminController extends Controller
         $recipient = Penerima::findOrFail($id);
         
         $validated = $request->validate([
-            'status_verifikasi' => 'required|in:terverifikasi,ditolak',
+            'status_verifikasi' => 'required|in:disetujui,ditolak',
             'catatan' => 'nullable|string',
         ]);
 
@@ -430,18 +432,9 @@ class AdminController extends Controller
             'status_verifikasi' => $validated['status_verifikasi'],
         ]);
 
-        // Update document verification status if exists
-        if ($recipient->dokumenVerifikasi) {
-            $recipient->dokumenVerifikasi()->update([
-                'status_verifikasi' => $validated['status_verifikasi'] === 'terverifikasi' 
-                    ? 'approved' 
-                    : 'rejected',
-            ]);
-        }
-
         return response()->json([
             'success' => true,
-            'message' => $validated['status_verifikasi'] === 'terverifikasi' 
+            'message' => $validated['status_verifikasi'] === 'disetujui' 
                 ? 'Penerima berhasil diverifikasi' 
                 : 'Verifikasi penerima ditolak',
             'data' => $recipient,
@@ -486,6 +479,9 @@ class AdminController extends Controller
                   ->orWhere('nomor_telepon', 'like', '%' . $request->search . '%');
             });
         }
+
+        // Order by latest first
+        $query->latest('id_donatur');
 
         $donors = $query->paginate($request->get('per_page', 10));
 
@@ -581,6 +577,9 @@ class AdminController extends Controller
             });
         }
 
+        // Order by latest first
+        $query->latest('id_penerima');
+
         $recipients = $query->paginate($request->get('per_page', 10));
 
         // Add statistics
@@ -633,7 +632,7 @@ class AdminController extends Controller
             'jumlah_tanggungan' => 'sometimes|integer|min:0',
             'pekerjaan_istri' => 'nullable|string|max:100',
             'status_anak' => 'nullable|string|max:100',
-            'status_verifikasi' => 'sometimes|in:pending,terverifikasi,ditolak',
+            'status_verifikasi' => 'sometimes|in:belum_mengajukan,pending,disetujui,ditolak',
         ]);
 
         $recipient->update($validated);
@@ -808,10 +807,10 @@ class AdminController extends Controller
 
         // Check if penerima is verified
         $penerima = Penerima::findOrFail($request->id_penerima);
-        if ($penerima->status_verifikasi !== 'terverifikasi') {
+        if ($penerima->status_verifikasi !== 'disetujui') {
             return response()->json([
                 'success' => false,
-                'message' => 'Penerima belum terverifikasi',
+                'message' => 'Penerima belum disetujui',
             ], 422);
         }
 
@@ -1228,7 +1227,7 @@ class AdminController extends Controller
         // Recipient statistics
         $recipientStats = [
             'total' => Penerima::count(),
-            'verified' => Penerima::where('status_verifikasi', 'terverifikasi')->count(),
+            'verified' => Penerima::where('status_verifikasi', 'disetujui')->count(),
             'pending' => Penerima::where('status_verifikasi', 'pending')->count(),
             'active' => PenerimaProgram::distinct('id_penerima')->count(),
         ];
@@ -1256,4 +1255,336 @@ class AdminController extends Controller
             'donors' => $donorStats,
         ]);
     }
+
+    // Schedule Management Methods
+    public function saveScheduleAndActivateProgram(Request $request, $id)
+    {
+        try {
+            \Log::info('=== SAVING SCHEDULE ===');
+            \Log::info('Program ID: ' . $id);
+            \Log::info('Request data: ', $request->all());
+            \Log::info('User: ', ['id' => $request->user()->id_admin, 'username' => $request->user()->username]);
+            
+            $program = ProgramBantuan::findOrFail($id);
+            \Log::info('Program found: ' . $program->nama_program);
+            
+            $validated = $request->validate([
+                'meta' => 'required|array',
+                'meta.startDate' => 'required|date',
+                'meta.endDate' => 'required|date|after_or_equal:meta.startDate',
+                'meta.criteria' => 'nullable|string',
+                'meta.description' => 'nullable|string',
+                'meta.donationValue' => 'nullable|string',
+                'stages' => 'required|array|min:1',
+                'stages.*.date' => 'required|date',
+                'stages.*.time' => 'required|string',
+                'stages.*.location' => 'required|string|max:200',
+                'stages.*.note' => 'nullable|string',
+                'stages.*.recipients' => 'required|array|min:1',
+                'stages.*.recipients.*' => 'required|integer|exists:penerima,id_penerima',
+            ]);
+            
+            \Log::info('Validation passed');
+
+            DB::beginTransaction();
+            \Log::info('Transaction started');
+
+            // Update program metadata
+            $program->update([
+                'tanggal_mulai' => $validated['meta']['startDate'],
+                'tanggal_selesai' => $validated['meta']['endDate'],
+                'deskripsi' => $validated['meta']['description'],
+                'keterangan' => $validated['meta']['criteria'],
+                'status' => 'aktif', // Activate the program
+            ]);
+            \Log::info('Program updated to aktif status');
+
+            // Create penerima_program records and schedule transactions
+            $stageCount = 0;
+            $recipientCount = 0;
+            foreach ($validated['stages'] as $stage) {
+                $stageCount++;
+                \Log::info('Processing stage ' . $stageCount . ': ' . $stage['date'] . ' ' . $stage['time']);
+                
+                foreach ($stage['recipients'] as $recipientId) {
+                    $recipientCount++;
+                    \Log::info('Processing recipient ' . $recipientId);
+                    
+                    // Create penerima_program record if not exists
+                    $penerimaProgram = PenerimaProgram::firstOrCreate([
+                        'id_program' => $program->id_program,
+                        'id_penerima' => $recipientId,
+                    ], [
+                        'status_penerimaan' => 'menunggu',
+                        'tanggal_penetapan' => now(),
+                        'created_by' => $request->user()->id_admin,
+                    ]);
+                    
+                    \Log::info('PenerimaProgram created/found: ' . $penerimaProgram->id_penerima_program);
+
+                    // Create transaction schedule
+                    $transaction = TransaksiPenyaluran::create([
+                        'id_penerima_program' => $penerimaProgram->id_penerima_program,
+                        'tanggal_penyaluran' => $stage['date'],
+                        'jam_penyaluran' => $stage['time'],
+                        'lokasi_penyaluran' => $stage['location'],
+                        'jumlah_diterima' => $program->jenis_bantuan === 'uang' ? 
+                            ($program->jumlah_bantuan / $this->getTotalRecipientsCount($validated['stages'])) : 1,
+                        'metode_penyaluran' => $program->jenis_bantuan === 'uang' ? 'transfer' : 'barang',
+                        'status_penyaluran' => 'dijadwalkan',
+                        'catatan' => $stage['note'],
+                    ]);
+                    
+                    \Log::info('Transaction created: ' . $transaction->id_transaksi);
+                }
+            }
+
+            \Log::info('All stages and recipients processed. Stages: ' . $stageCount . ', Recipients: ' . $recipientCount);
+            DB::commit();
+            \Log::info('Transaction committed successfully');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Jadwal berhasil disimpan dan program diaktifkan',
+                'data' => $program->load(['kategori', 'donatur']),
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollback();
+            \Log::error('Validation failed: ', $e->errors());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Validasi gagal',
+                'errors' => $e->errors(),
+            ], 422);
+            
+        } catch (\Exception $e) {
+            DB::rollback();
+            \Log::error('Error saving schedule: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menyimpan jadwal: ' . $e->getMessage(),
+                'error' => $e->getMessage(),
+                'trace' => config('app.debug') ? $e->getTraceAsString() : null,
+            ], 500);
+        }
+    }
+
+    public function getSchedules(Request $request, $id)
+    {
+        $program = ProgramBantuan::findOrFail($id);
+        
+        $schedules = TransaksiPenyaluran::with([
+                'penerimaProgram.penerima:id_penerima,nama_kepala,no_kk,alamat,jumlah_tanggungan',
+                'penerimaProgram.program:id_program,nama_program'
+            ])
+            ->whereHas('penerimaProgram', function($query) use ($id) {
+                $query->where('id_program', $id);
+            })
+            ->orderBy('tanggal_penyaluran', 'asc')
+            ->orderBy('jam_penyaluran', 'asc')
+            ->get()
+            ->groupBy(function($transaction) {
+                return $transaction->tanggal_penyaluran->format('Y-m-d') . '-' . 
+                       $transaction->jam_penyaluran . '-' . 
+                       $transaction->lokasi_penyaluran . '-' . 
+                       ($transaction->catatan ?? '');
+            })
+            ->map(function($group, $key) {
+                $first = $group->first();
+                $keyParts = explode('-', $key);
+                
+                return [
+                    'date' => $first->tanggal_penyaluran->format('Y-m-d'),
+                    'time' => $first->jam_penyaluran,
+                    'location' => $first->lokasi_penyaluran,
+                    'note' => $first->catatan,
+                    'recipients' => $group->map(function($transaction) {
+                        return [
+                            'id' => $transaction->penerimaProgram->penerima->id_penerima,
+                            'name' => $transaction->penerimaProgram->penerima->nama_kepala,
+                            'kk' => $transaction->penerimaProgram->penerima->no_kk,
+                            'address' => $transaction->penerimaProgram->penerima->alamat,
+                            'dependents' => $transaction->penerimaProgram->penerima->jumlah_tanggungan,
+                            'amount' => $transaction->jumlah_diterima,
+                            'status' => $transaction->status_penyaluran,
+                            'transaction_id' => $transaction->id_transaksi,
+                        ];
+                    })->values(),
+                    'total_recipients' => $group->count(),
+                    'total_amount' => $group->sum('jumlah_diterima'),
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'program' => [
+                'id' => $program->id_program,
+                'name' => $program->nama_program,
+                'type' => $program->jenis_bantuan,
+                'amount' => $program->jumlah_bantuan,
+                'status' => $program->status,
+                'start_date' => $program->tanggal_mulai,
+                'end_date' => $program->tanggal_selesai,
+                'description' => $program->deskripsi,
+                'criteria' => $program->keterangan,
+            ],
+            'schedules' => $schedules,
+        ]);
+    }
+
+    private function getTotalRecipientsCount($stages)
+    {
+        $totalRecipients = 0;
+        foreach ($stages as $stage) {
+            $totalRecipients += count($stage['recipients']);
+        }
+        return max($totalRecipients, 1); // Avoid division by zero
+    }
+
+    public function getAvailableRecipients(Request $request)
+    {
+        $query = Penerima::where('status_verifikasi', 'disetujui');
+
+        // Filter by search query
+        if ($request->has('search') && $request->search != '') {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('nama_kepala', 'like', '%' . $search . '%')
+                  ->orWhere('no_kk', 'like', '%' . $search . '%')
+                  ->orWhere('alamat', 'like', '%' . $search . '%');
+            });
+        }
+
+        // Filter by income tier
+        if ($request->has('income_tier') && is_array($request->income_tier) && count($request->income_tier) > 0) {
+            $query->whereIn('penghasilan', $request->income_tier);
+        }
+
+        // Filter by minimum dependents
+        if ($request->has('min_dependents') && $request->min_dependents != '') {
+            $query->where('jumlah_tanggungan', '>=', $request->min_dependents);
+        }
+
+        $recipients = $query->get()->map(function($penerima) {
+            return [
+                'id' => $penerima->id_penerima,
+                'name' => $penerima->nama_kepala,
+                'kk' => $penerima->no_kk,
+                'address' => $penerima->alamat,
+                'dependents' => $penerima->jumlah_tanggungan,
+                'income' => $penerima->penghasilan,
+                'job' => $penerima->pekerjaan,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $recipients,
+        ]);
+    }
+
+    // Upload dokumentasi program
+    public function uploadDokumentasi(Request $request)
+    {
+        $request->validate([
+            'id_program' => 'required|exists:program_bantuan,id_program',
+            'judul' => 'required|string|max:200',
+            'deskripsi' => 'nullable|string',
+            'file' => 'required|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:10240', // Max 10MB
+        ]);
+
+        try {
+            $file = $request->file('file');
+            $fileName = time() . '_' . $file->getClientOriginalName();
+            $filePath = $file->storeAs('dokumentasi_program', $fileName, 'public');
+
+            $dokumentasi = DokumentasiProgram::create([
+                'id_program' => $request->id_program,
+                'judul' => $request->judul,
+                'deskripsi' => $request->deskripsi,
+                'file_path' => $filePath,
+                'file_name' => $fileName,
+                'file_type' => $file->getClientMimeType(),
+                'file_size' => $file->getSize(),
+                'tanggal_upload' => now(),
+                'uploaded_by' => auth()->user()->id_admin,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Dokumentasi berhasil diupload',
+                'data' => $dokumentasi,
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengupload dokumentasi: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    // Get dokumentasi by program
+    public function getDokumentasiProgram($id_program)
+    {
+        try {
+            $dokumentasi = DokumentasiProgram::where('id_program', $id_program)
+                ->latest()
+                ->get()
+                ->map(function($doc) {
+                    return [
+                        'id' => $doc->id_dokumentasi,
+                        'judul' => $doc->judul,
+                        'deskripsi' => $doc->deskripsi,
+                        'file_name' => $doc->file_name,
+                        'file_path' => asset('storage/' . $doc->file_path),
+                        'file_type' => $doc->file_type,
+                        'file_size' => $doc->file_size,
+                        'tanggal_upload' => $doc->tanggal_upload->format('d M Y'),
+                        'uploaded_by' => 'Admin',
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'data' => $dokumentasi,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal memuat dokumentasi: ' . $e->getMessage(),
+                'data' => [],
+            ]);
+        }
+    }
+
+    // Delete dokumentasi
+    public function deleteDokumentasi($id)
+    {
+        try {
+            $dokumentasi = DokumentasiProgram::findOrFail($id);
+            
+            // Delete file from storage
+            if (Storage::disk('public')->exists($dokumentasi->file_path)) {
+                Storage::disk('public')->delete($dokumentasi->file_path);
+            }
+
+            $dokumentasi->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Dokumentasi berhasil dihapus',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menghapus dokumentasi: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
 }
+

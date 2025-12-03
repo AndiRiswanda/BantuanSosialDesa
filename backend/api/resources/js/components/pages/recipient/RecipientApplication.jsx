@@ -89,23 +89,125 @@ export default function RecipientApplication() {
   const [kkNumber, setKkNumber] = useState("");
   const [kkError, setKkError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [userData, setUserData] = useState(null);
+  const [approvalBannerDismissed, setApprovalBannerDismissed] = useState(false);
+  
+  // Form data state
+  const [formData, setFormData] = useState({
+    nama_kepala: '',
+    no_kk: '',
+    alamat: '',
+    nomor_telepon: '',
+    pekerjaan: '',
+    pekerjaan_istri: '',
+    penghasilan: '',
+    jumlah_tanggungan: 0,
+    status_anak: '',
+  });
 
   useEffect(() => {
     fetchUserData();
   }, []);
 
+  // Check if approval banner was dismissed
+  useEffect(() => {
+    if (userData?.id_penerima) {
+      const dismissKey = `approval_banner_dismissed_${userData.id_penerima}`;
+      setApprovalBannerDismissed(localStorage.getItem(dismissKey) === 'true');
+    }
+  }, [userData?.id_penerima]);
+
   const fetchUserData = async () => {
     try {
       setLoading(true);
       const response = await recipientAPI.getProfile();
+      console.log('Profile response:', response);
+      console.log('Status verifikasi:', response.profile?.status_verifikasi);
+      
       if (response.success) {
         setUserData(response.profile);
+        
+        // Pre-fill form data if available
+        setFormData({
+          nama_kepala: response.profile.nama_kepala || '',
+          no_kk: response.profile.no_kk || '',
+          alamat: response.profile.alamat || '',
+          nomor_telepon: response.profile.nomor_telepon || '',
+          pekerjaan: response.profile.pekerjaan || '',
+          pekerjaan_istri: response.profile.pekerjaan_istri || '',
+          penghasilan: response.profile.penghasilan || '',
+          jumlah_tanggungan: response.profile.jumlah_tanggungan || 0,
+          status_anak: response.profile.status_anak || '',
+        });
+        setKkNumber(response.profile.no_kk || '');
       }
     } catch (err) {
       console.error('Error fetching user data:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const dismissApprovalBanner = () => {
+    if (userData?.id_penerima) {
+      const dismissKey = `approval_banner_dismissed_${userData.id_penerima}`;
+      localStorage.setItem(dismissKey, 'true');
+      setApprovalBannerDismissed(true);
+    }
+  };
+
+  const handleSubmit = async () => {
+    try {
+      setSubmitting(true);
+      
+      // Validate required fields
+      const requiredFields = ['nama_kepala', 'no_kk', 'alamat', 'nomor_telepon', 'pekerjaan', 'penghasilan', 'status_anak'];
+      const emptyFields = requiredFields.filter(field => !formData[field] || formData[field] === '');
+      
+      if (emptyFields.length > 0) {
+        alert('Mohon lengkapi semua field yang wajib diisi: ' + emptyFields.join(', '));
+        setSubmitting(false);
+        return;
+      }
+      
+      // Create FormData for file upload
+      const submitData = new FormData();
+      Object.keys(formData).forEach(key => {
+        if (formData[key] !== null && formData[key] !== undefined) {
+          submitData.append(key, formData[key]);
+        }
+      });
+      
+      if (kkFile) {
+        submitData.append('kk_file', kkFile);
+      }
+      if (houseFile) {
+        submitData.append('house_file', houseFile);
+      }
+
+      console.log('Submitting data:', Object.fromEntries(submitData));
+
+      const response = await recipientAPI.submitApplication(submitData);
+      
+      if (response.success) {
+        // Refresh user data to get updated status
+        await fetchUserData();
+        alert('Pengajuan berhasil dikirim! Data Anda akan segera diverifikasi oleh admin.');
+      }
+    } catch (err) {
+      console.error('Error submitting application:', err);
+      console.error('Error details:', err.response?.data);
+      const errorMsg = err.response?.data?.errors 
+        ? Object.values(err.response.data.errors).flat().join(', ')
+        : (err.response?.data?.message || err.message);
+      alert('Gagal mengirim pengajuan: ' + errorMsg);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -131,9 +233,66 @@ export default function RecipientApplication() {
   return (
     <div className="min-h-screen flex flex-col bg-[#E6EFFA]">
       <NavbarRecipient />
-
       <main className="flex-1 px-4 sm:px-6 lg:px-20 py-6 lg:py-10">
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-3xl mx-auto">
+          {/* Status notification for pending */}
+          {userData?.status_verifikasi === 'pending' && (
+            <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-xl p-4 shadow-sm">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <AlertTriangle className="w-5 h-5 text-yellow-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-yellow-900 mb-1">Pengajuan Sedang Diverifikasi</h3>
+                  <p className="text-sm text-yellow-800">
+                    Data Anda sedang dalam proses verifikasi oleh admin desa. Mohon tunggu maksimal 4×24 jam untuk keputusan lebih lanjut.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Status notification for approved */}
+          {userData?.status_verifikasi === 'disetujui' && !approvalBannerDismissed && (
+            <div className="mb-6 bg-green-50 border border-green-200 rounded-xl p-4 shadow-sm">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <BadgeCheck className="w-5 h-5 text-green-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-green-900 mb-1">Pengajuan Telah Disetujui</h3>
+                  <p className="text-sm text-green-800">
+                    Selamat! Pengajuan bantuan Anda telah diverifikasi dan disetujui oleh admin desa. Anda dapat melihat program bantuan yang tersedia di menu Program Bantuan.
+                  </p>
+                </div>
+                <button
+                  onClick={dismissApprovalBanner}
+                  className="text-green-600 hover:text-green-800 transition-colors flex-shrink-0"
+                  aria-label="Tutup notifikasi"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Status notification for rejected */}
+          {userData?.status_verifikasi === 'ditolak' && (
+            <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 shadow-sm">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <AlertTriangle className="w-5 h-5 text-red-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-red-900 mb-1">Pengajuan Ditolak</h3>
+                  <p className="text-sm text-red-800">
+                    Mohon maaf, pengajuan Anda tidak dapat disetujui. Silakan periksa kembali data yang Anda ajukan dan perbaiki jika ada kekurangan, lalu ajukan kembali.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Form header */}
           <div className="bg-white/90 border border-green-200 rounded-xl shadow-sm p-4 sm:p-6 mb-6">
             <h1 className="text-[#0B2B5E] font-semibold text-lg sm:text-2xl flex items-center gap-2">
@@ -160,36 +319,59 @@ export default function RecipientApplication() {
           {/* Form card */}
           <form className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6 space-y-5">
             <Field label="Nama Lengkap Kepala Keluarga" hint="Ket: Masukkan nama lengkap kepala keluarga sesuai KTP dan Kartu Keluarga (KK)">
-              <Input placeholder={userData?.nama_kepala ? `contoh: ${userData.nama_kepala}` : "contoh: 'Ahmad Dahlan'"} />
+              <Input 
+                placeholder={userData?.nama_kepala ? `contoh: ${userData.nama_kepala}` : "contoh: 'Ahmad Dahlan'"}
+                value={formData.nama_kepala}
+                onChange={(e) => handleInputChange('nama_kepala', e.target.value)}
+              />
             </Field>
 
             <Field label="No. Kartu Keluarga (KK)" hint="Ket: Masukkan 16 digit nomor Kartu Keluarga (KK)">
               <>
                 <Input
                   placeholder={userData?.no_kk ? `contoh: ${userData.no_kk}` : "contoh: '3601012501250001'"}
-                  value={kkNumber}
-                  onChange={(e) => { setKkNumber(e.target.value); setKkError(''); }}
+                  value={formData.no_kk}
+                  onChange={(e) => { 
+                    handleInputChange('no_kk', e.target.value);
+                    setKkNumber(e.target.value); 
+                    setKkError(''); 
+                  }}
                 />
                 {kkError && <div className="text-sm text-red-600 mt-1">{kkError}</div>}
               </>
             </Field>
 
             <Field label="Alamat" hint="Ket: Masukkan alamat lengkap (jalan, RT/RW)">
-              <Input placeholder={userData?.alamat ? `contoh: ${userData.alamat}` : "contoh: 'Jl. Merdeka No. 10, RT 01/RW 02'"} />
+              <Input 
+                placeholder={userData?.alamat ? `contoh: ${userData.alamat}` : "contoh: 'Jl. Merdeka No. 10, RT 01/RW 02'"}
+                value={formData.alamat}
+                onChange={(e) => handleInputChange('alamat', e.target.value)}
+              />
             </Field>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Field label="No. Telepon/WhatsApp" hint="Ket: Masukkan nomor yang aktif untuk dihubungi">
-                <Input placeholder={userData?.nomor_telepon ? `contoh: ${userData.nomor_telepon}` : "contoh: '081234567890'"} />
+                <Input 
+                  placeholder={userData?.nomor_telepon ? `contoh: ${userData.nomor_telepon}` : "contoh: '081234567890'"}
+                  value={formData.nomor_telepon}
+                  onChange={(e) => handleInputChange('nomor_telepon', e.target.value)}
+                />
               </Field>
               <Field label="Pekerjaan" hint="Ket: Masukkan pekerjaan kepala keluarga">
-                <Input placeholder={userData?.pekerjaan ? `contoh: ${userData.pekerjaan}` : "contoh: 'Petani'"} />
+                <Input 
+                  placeholder={userData?.pekerjaan ? `contoh: ${userData.pekerjaan}` : "contoh: 'Petani'"}
+                  value={formData.pekerjaan}
+                  onChange={(e) => handleInputChange('pekerjaan', e.target.value)}
+                />
               </Field>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Field label="Penghasilan" hint="Ket: Pilih sesuai rentang penghasilan per bulan">
-                <Select defaultValue={userData?.penghasilan || ""}>
+                <Select 
+                  value={formData.penghasilan}
+                  onChange={(e) => handleInputChange('penghasilan', e.target.value)}
+                >
                   <option value="" disabled>
                     -- Pilih Penghasilan --
                   </option>
@@ -201,13 +383,21 @@ export default function RecipientApplication() {
                 </Select>
               </Field>
               <Field label="Jumlah Tanggungan" hint="Ket: Masukkan jumlah tanggungan kepala keluarga">
-                <Input placeholder={userData?.jumlah_tanggungan ? `contoh: ${userData.jumlah_tanggungan}` : "contoh: '3'"} />
+                <Input 
+                  type="number"
+                  placeholder={userData?.jumlah_tanggungan ? `contoh: ${userData.jumlah_tanggungan}` : "contoh: '3'"}
+                  value={formData.jumlah_tanggungan}
+                  onChange={(e) => handleInputChange('jumlah_tanggungan', parseInt(e.target.value) || 0)}
+                />
               </Field>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Field label="Status Pekerjaan Istri" hint="Ket: Pilih sesuai status pekerjaan istri">
-                <Select defaultValue={userData?.pekerjaan_istri || ""}>
+                <Select 
+                  value={formData.pekerjaan_istri}
+                  onChange={(e) => handleInputChange('pekerjaan_istri', e.target.value)}
+                >
                   <option value="" disabled>
                     -- Pilih Status Pekerjaan Istri --
                   </option>
@@ -218,7 +408,10 @@ export default function RecipientApplication() {
                 </Select>
               </Field>
               <Field label="Status Anak" hint="Ket: Pilih sesuai status anak Anda">
-                <Select defaultValue={userData?.status_anak || ""}>
+                <Select 
+                  value={formData.status_anak}
+                  onChange={(e) => handleInputChange('status_anak', e.target.value)}
+                >
                   <option value="" disabled>
                     -- Pilih Status Anak --
                   </option>
@@ -326,11 +519,12 @@ export default function RecipientApplication() {
           <button
             onClick={() => {
               setShowConfirm(false);
-              navigate("/penerima/pengajuan/status/pending");
+              handleSubmit();
             }}
-            className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-white font-semibold hover:bg-emerald-700"
+            disabled={submitting}
+            className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-white font-semibold hover:bg-emerald-700 disabled:bg-slate-400 disabled:cursor-not-allowed"
           >
-            Ya, Saya Yakin
+            {submitting ? 'Mengirim...' : 'Ya, Saya Yakin'}
           </button>
         </div>
       </Modal>

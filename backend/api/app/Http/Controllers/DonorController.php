@@ -84,9 +84,20 @@ class DonorController extends Controller
         $donatur = $request->user();
         
         $programs = $donatur->programBantuan()
-            ->with('kategori')
+            ->with(['kategori', 'penerimaPrograms.transaksiPenyaluran'])
             ->latest()
-            ->paginate(10);
+            ->get()
+            ->map(function($program) {
+                // Add has_schedule flag to indicate if program has been scheduled
+                $hasSchedule = $program->penerimaPrograms->contains(function($pp) {
+                    return $pp->transaksiPenyaluran && $pp->transaksiPenyaluran->count() > 0;
+                });
+                
+                $programData = $program->toArray();
+                $programData['has_schedule'] = $hasSchedule;
+                
+                return $programData;
+            });
             
         return response()->json($programs);
     }
@@ -341,14 +352,22 @@ class DonorController extends Controller
             ], 400);
         }
         
-        $request->validate([
-            'bukti_transfer' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120', // 5MB max
-        ], [
-            'bukti_transfer.required' => 'File bukti transfer harus diunggah.',
-            'bukti_transfer.file' => 'Bukti transfer harus berupa file.',
-            'bukti_transfer.mimes' => 'Bukti transfer harus berformat: jpg, jpeg, png, atau pdf.',
-            'bukti_transfer.max' => 'Ukuran file bukti transfer maksimal 5MB.',
-        ]);
+        // Use manual validation with try-catch for better error handling
+        try {
+            $request->validate([
+                'bukti_transfer' => 'required|file|mimes:jpg,jpeg,png,pdf|max:102400', // 100MB max
+            ], [
+                'bukti_transfer.required' => 'File bukti transfer harus diunggah.',
+                'bukti_transfer.file' => 'Bukti transfer harus berupa file.',
+                'bukti_transfer.mimes' => 'Bukti transfer harus berformat: jpg, jpeg, png, atau pdf.',
+                'bukti_transfer.max' => 'Ukuran file bukti transfer maksimal 100MB.',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $firstError = collect($e->errors())->flatten()->first();
+            return response()->json([
+                'message' => $firstError ?: 'Data yang dikirim tidak valid.'
+            ], 422);
+        }
         
         try {
             // Store the file in public/storage/bukti_transfer
@@ -387,8 +406,7 @@ class DonorController extends Controller
             ]);
             
             return response()->json([
-                'message' => 'Gagal mengunggah bukti transfer.',
-                'error' => $e->getMessage() // Always show error for debugging
+                'message' => 'Gagal mengunggah bukti transfer.'
             ], 500);
         }
     }

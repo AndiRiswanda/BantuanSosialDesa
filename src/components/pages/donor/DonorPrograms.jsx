@@ -1,8 +1,10 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import NavbarDonor from "../../layout/NavbarDonor";
-import { Filter, Search, UploadCloud, Info, CalendarDays, BadgeDollarSign, PackageCheck } from "lucide-react";
+import { Filter, Search, UploadCloud, Info, CalendarDays, BadgeDollarSign, PackageCheck, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import UploadProofModal from "./UploadProofModal";
+import ViewProofModal from "./ViewProofModal";
+import api from "../../../utils/api";
 
 function StatusPill({ color = "slate", children }) {
   const map = {
@@ -80,13 +82,100 @@ function ProgramCard({ title, start, end, type, amount, status, cta, note, progr
 export default function DonorPrograms() {
   const navigate = useNavigate();
   const [showUpload, setShowUpload] = useState(false);
+  const [showViewProof, setShowViewProof] = useState(false);
   const [activeProgramId, setActiveProgramId] = useState(null);
+  const [activeProgram, setActiveProgram] = useState(null);
+  const [programs, setPrograms] = useState([]);
+  const [loading, setLoading] = useState(true);
   // Filters state
   const [statusFilter, setStatusFilter] = useState("ALL"); // ALL | PENDING | SCHEDULED | COMPLETED
   const [query, setQuery] = useState("");
 
-  // Static sample data to demonstrate filtering
-  const programs = useMemo(
+  useEffect(() => {
+    fetchPrograms();
+  }, []);
+
+  const fetchPrograms = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/api/donatur/programs');
+      console.log('API Response:', response);
+      
+      // Transform API data to match component format
+      const transformedPrograms = response.map(program => {
+        // Format tanggal dengan safety check
+        const startDate = program.tanggal_mulai 
+          ? new Date(program.tanggal_mulai).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+          : '-';
+        const endDate = program.tanggal_selesai 
+          ? new Date(program.tanggal_selesai).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+          : 'Tidak ditentukan';
+        
+        // Format jumlah bantuan
+        const amount = program.jenis_bantuan === 'uang' 
+          ? `Rp ${parseFloat(program.jumlah_bantuan).toLocaleString('id-ID')}`
+          : `${parseFloat(program.jumlah_bantuan).toLocaleString('id-ID')} unit`;
+        
+        // Map status dari database ke UI dengan mempertimbangkan jadwal
+        let uiStatus = 'PENDING';
+        if (program.status === 'aktif') {
+          // Jika status aktif dan sudah dijadwalkan, masuk ke SCHEDULED
+          if (program.has_schedule) {
+            uiStatus = 'SCHEDULED';
+          } else {
+            // Jika status aktif tapi belum dijadwalkan, tetap PENDING
+            uiStatus = 'PENDING';
+          }
+        } else if (program.status === 'selesai') {
+          uiStatus = 'COMPLETED';
+        } else if (program.status === 'ditunda') {
+          uiStatus = 'PENDING';
+        }
+        
+        // Determine CTA key and note
+        let ctaKey = undefined;
+        let note = null;
+        
+        if (program.status === 'pending' && program.jenis_bantuan === 'uang') {
+          if (program.bukti_transfer) {
+            ctaKey = 'view';
+            note = 'Menunggu review admin...';
+          } else {
+            ctaKey = 'upload';
+            note = 'Menunggu upload bukti transfer';
+          }
+        } else if (program.status === 'aktif' && program.has_schedule) {
+          note = 'Program sedang berjalan dan sudah dijadwalkan';
+        } else if (program.status === 'aktif' && !program.has_schedule) {
+          note = 'Menunggu penjadwalan oleh admin';
+        }
+        
+        return {
+          id: program.id_program,
+          title: program.nama_program,
+          start: startDate,
+          end: endDate,
+          type: program.jenis_bantuan === 'uang' ? 'Uang' : 'Barang',
+          amount: amount,
+          status: uiStatus,
+          note: note,
+          ctaKey: ctaKey,
+          bukti_transfer: program.bukti_transfer,
+          progress: program.status === 'selesai' ? 100 : (program.status === 'aktif' && program.has_schedule ? 50 : 0),
+        };
+      });
+      
+      setPrograms(transformedPrograms);
+    } catch (error) {
+      console.error('Error fetching programs:', error);
+      alert('Gagal memuat program: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Static sample data to demonstrate filtering (akan diganti dengan data API)
+  /*const programs = useMemo(
     () => [
       {
         id: 1,
@@ -98,6 +187,7 @@ export default function DonorPrograms() {
         status: "PENDING",
         note: "Menunggu upload bukti transfer",
         ctaKey: "upload",
+        bukti_transfer: null,
       },
       {
         id: 2,
@@ -109,6 +199,7 @@ export default function DonorPrograms() {
         status: "PENDING",
         note: "Menunggu review admin. Program akan segera aktif setelah disetujui.",
         ctaKey: "view",
+        bukti_transfer: "/storage/bukti_transfer/sample_proof.jpg", // Sample proof
       },
       {
         id: 3,
@@ -132,7 +223,7 @@ export default function DonorPrograms() {
       },
     ],
     []
-  );
+  );*/
 
   const statusMeta = {
     PENDING: { label: "Pending", color: "yellow" },
@@ -228,8 +319,20 @@ export default function DonorPrograms() {
         </div>
       </section>
 
+      {/* Loading state */}
+      {loading && (
+        <section className="bg-white">
+          <div className="max-w-6xl mx-auto px-4 py-10">
+            <div className="flex items-center justify-center">
+              <Loader2 className="w-8 h-8 animate-spin text-green-600" />
+              <span className="ml-2 text-slate-600">Memuat program...</span>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Empty state */}
-      {filtered.length === 0 && (
+      {!loading && filtered.length === 0 && (
         <section className="bg-white">
           <div className="max-w-6xl mx-auto px-4 py-10">
             <div className="border border-dashed border-slate-300 rounded-xl p-8 text-center text-slate-600">
@@ -240,7 +343,7 @@ export default function DonorPrograms() {
       )}
 
       {/* Waiting confirmation */}
-      {(statusFilter === "ALL" || statusFilter === "PENDING") && groups.PENDING.length > 0 && (
+      {!loading && (statusFilter === "ALL" || statusFilter === "PENDING") && groups.PENDING.length > 0 && (
         <section className="bg-white">
           <div className="max-w-6xl mx-auto px-4 py-6">
             <h3 className="font-semibold text-[#0B2B5E]">Menunggu Konfirmasi</h3>
@@ -270,7 +373,15 @@ export default function DonorPrograms() {
                           },
                         }
                       : p.ctaKey === "view"
-                      ? { label: "Lihat Bukti Transfer", icon: <PackageCheck className="w-4 h-4" /> }
+                      ? { 
+                          label: "Lihat Bukti Transfer", 
+                          icon: <PackageCheck className="w-4 h-4" />,
+                          onClick: () => {
+                            setActiveProgramId(p.id);
+                            setActiveProgram(p);
+                            setShowViewProof(true);
+                          },
+                        }
                       : undefined
                   }
                   note={p.note}
@@ -282,7 +393,7 @@ export default function DonorPrograms() {
       )}
 
       {/* In progress */}
-      {(statusFilter === "ALL" || statusFilter === "SCHEDULED") && groups.SCHEDULED.length > 0 && (
+      {!loading && (statusFilter === "ALL" || statusFilter === "SCHEDULED") && groups.SCHEDULED.length > 0 && (
         <section className="bg-white">
           <div className="max-w-6xl mx-auto px-4 py-6">
             <h3 className="font-semibold text-[#0B2B5E] flex items-center gap-2"><span className="w-2 h-2 bg-green-600 rounded-full"/> Sedang Diproses (Terjadwal)</h3>
@@ -306,7 +417,7 @@ export default function DonorPrograms() {
       )}
 
       {/* Completed */}
-      {(statusFilter === "ALL" || statusFilter === "COMPLETED") && groups.COMPLETED.length > 0 && (
+      {!loading && (statusFilter === "ALL" || statusFilter === "COMPLETED") && groups.COMPLETED.length > 0 && (
         <section className="bg-white pb-10">
           <div className="max-w-6xl mx-auto px-4 py-6">
             <h3 className="font-semibold text-[#0B2B5E] flex items-center gap-2"><span className="w-2 h-2 bg-blue-600 rounded-full"/> Sudah Tersalurkan</h3>
@@ -331,11 +442,28 @@ export default function DonorPrograms() {
 
       {showUpload && (
         <UploadProofModal
-          onClose={() => setShowUpload(false)}
-          onSave={(file) => {
-            // Placeholder: integrate API upload here
-            console.log("Saved proof for program", activeProgramId, file);
+          programId={activeProgramId}
+          onClose={() => {
             setShowUpload(false);
+            setActiveProgramId(null);
+          }}
+          onSave={(file) => {
+            // Refresh data after successful upload
+            console.log("Bukti transfer uploaded for program", activeProgramId);
+            setShowUpload(false);
+            setActiveProgramId(null);
+          }}
+        />
+      )}
+
+      {showViewProof && (
+        <ViewProofModal
+          programId={activeProgramId}
+          program={activeProgram}
+          onClose={() => {
+            setShowViewProof(false);
+            setActiveProgramId(null);
+            setActiveProgram(null);
           }}
         />
       )}
