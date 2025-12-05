@@ -332,7 +332,12 @@ export default function AdminVerificationDashboard() {
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 border border-amber-200">
-                              {recipient.status_verifikasi === 'pending' ? 'Pending' : recipient.status_verifikasi}
+                              {recipient.status_verifikasi === 'pending' ? 'Menunggu' : 
+                               recipient.status_verifikasi === 'disetujui' ? 'Disetujui' :
+                               recipient.status_verifikasi === 'ditolak' ? 'Ditolak' :
+                               recipient.status_verifikasi === 'terverifikasi' ? 'Terverifikasi' :
+                               recipient.status_verifikasi === 'belum_mengajukan' ? 'Belum Mengajukan' :
+                               recipient.status_verifikasi}
                             </span>
                           </div>
                         </div>
@@ -460,13 +465,9 @@ export default function AdminVerificationDashboard() {
                     {donors.map((donor) => (
                       <tr key={donor.id_donatur}>
                         <td className="px-3 py-2">
-                          <button 
-                            type="button" 
-                            onClick={() => navigate(`/admin/donors/${donor.id_donatur}`)} 
-                            className="text-left text-emerald-700 hover:underline"
-                          >
+                          <span className="text-slate-900 font-medium">
                             {donor.nama_organisasi || donor.nama_lengkap}
-                          </button>
+                          </span>
                         </td>
                         <td className="px-3 py-2">{donor.nama_organisasi ? 'Organisasi' : 'Individu'}</td>
                         <td className="px-3 py-2 text-xs">{donor.alamat || '-'}</td>
@@ -475,11 +476,21 @@ export default function AdminVerificationDashboard() {
                           <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
                             donor.status === 'aktif' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
                           }`}>
-                            {donor.status}
+                            {donor.status === 'aktif' ? 'Aktif' : 
+                             donor.status === 'nonaktif' ? 'Nonaktif' : 
+                             donor.status === 'pending' ? 'Menunggu' :
+                             donor.status}
                           </span>
                         </td>
                         <td className="px-3 py-2">
                           <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => navigate(`/admin/donors/${donor.id_donatur}`)} 
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200" 
+                              title="Lihat Detail"
+                            >
+                              <Eye className="w-4 h-4"/>
+                            </button>
                             {donor.status === 'nonaktif' && (
                               <button 
                                 onClick={() => handleVerifyDonor(donor.id_donatur, 'aktif')}
@@ -571,11 +582,23 @@ export default function AdminVerificationDashboard() {
                             recipient.status_verifikasi === 'pending' ? 'bg-amber-100 text-amber-700' :
                             'bg-red-100 text-red-700'
                           }`}>
-                            {recipient.status_verifikasi}
+                            {recipient.status_verifikasi === 'terverifikasi' ? 'Terverifikasi' :
+                             recipient.status_verifikasi === 'pending' ? 'Menunggu' :
+                             recipient.status_verifikasi === 'disetujui' ? 'Disetujui' :
+                             recipient.status_verifikasi === 'ditolak' ? 'Ditolak' :
+                             recipient.status_verifikasi === 'belum_mengajukan' ? 'Belum Mengajukan' :
+                             recipient.status_verifikasi}
                           </span>
                         </td>
                         <td className="px-3 py-2">
                           <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => navigate(`/admin/recipients/${recipient.id_penerima}`)}
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200" 
+                              title="Lihat Detail"
+                            >
+                              <Eye className="w-4 h-4"/>
+                            </button>
                             <button 
                               onClick={() => navigate(`/admin/recipients/${recipient.id_penerima}/edit`)} 
                               className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200" 

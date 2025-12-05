@@ -224,8 +224,257 @@ function PendingCard({ item, onApprove, onReject, onDetail, onSchedule, onViewPr
   );
 }
 
+function RejectedCard({ item, onDetail }) {
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+
+  const isUang = item.jenis_bantuan === 'uang';
+
+  return (
+    <section className="rounded-xl bg-red-50 p-5 space-y-4 border border-red-200">
+      {/* Header - Title and Badge */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1">
+          <h3 className="text-slate-900 font-semibold text-base mb-1">{item.nama_program}</h3>
+          <p className="text-sm text-slate-600">Donatur: {item.donatur?.nama_organisasi || item.donatur?.nama_lengkap || '-'}</p>
+        </div>
+        <div className="flex gap-2 shrink-0">
+          <span className="inline-flex items-center px-3 py-1 rounded-lg bg-blue-100 text-blue-700 text-sm font-semibold">
+            {isUang ? 'Uang' : 'Barang'}
+          </span>
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-red-100 text-red-700 text-sm font-semibold">
+            <XCircle className="w-4 h-4" /> Ditolak
+          </span>
+        </div>
+      </div>
+
+      {/* Dates */}
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 text-sm text-slate-700">
+          <Calendar className="w-4 h-4 text-blue-600" />
+          <span>{formatDate(item.tanggal_mulai)}</span>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-slate-700">
+          <Calendar className="w-4 h-4 text-blue-600" />
+          <span>{formatDate(item.tanggal_selesai)}</span>
+        </div>
+      </div>
+
+      {/* Donation Amount */}
+      <div className="space-y-1">
+        <div className="flex items-center gap-2 text-emerald-600">
+          {isUang ? <Wallet className="w-5 h-5" /> : <Package className="w-5 h-5" />}
+          <span className="text-sm font-medium">Jumlah Donasi</span>
+        </div>
+        <p className="text-base font-bold text-slate-900">
+          {isUang ? formatCurrency(item.jumlah_bantuan) : `${parseInt(item.jumlah_bantuan)} paket`}
+        </p>
+      </div>
+
+      {/* Rejection Reason */}
+      {item.alasan_penolakan && (
+        <div className="rounded-lg bg-white border border-red-200 p-3">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-red-700 mb-1">Alasan Penolakan:</p>
+              <p className="text-sm text-slate-700">{item.alasan_penolakan}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Action Buttons */}
+      <div className="flex flex-wrap gap-3">
+        <button 
+          onClick={() => onDetail(item.id_program)}
+          className="px-4 py-2 rounded-lg bg-white border border-slate-300 text-slate-800 text-sm font-semibold hover:bg-slate-50"
+        >
+          Detail Program
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function CompletedCard({ item, onDetail }) {
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+
+  const isUang = item.jenis_bantuan === 'uang';
+
+  return (
+    <section className="rounded-xl bg-green-50 p-5 space-y-4 border border-green-300">
+      {/* Header - Title and Badge */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1">
+          <h3 className="text-slate-900 font-semibold text-base mb-1">{item.nama_program}</h3>
+          <p className="text-sm text-slate-600">Donatur: {item.donatur?.nama_organisasi || item.donatur?.nama_lengkap || '-'}</p>
+        </div>
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-600 text-white">
+          <CheckCircle2 className="w-4 h-4" />
+          <span className="text-xs font-semibold">Selesai</span>
+        </div>
+      </div>
+
+      {/* Info Grid */}
+      <div className="grid grid-cols-2 gap-3 text-sm">
+        <div>
+          <p className="text-slate-500 mb-1">Kategori</p>
+          <p className="font-medium text-slate-800">{item.kategori?.nama_kategori || '-'}</p>
+        </div>
+        <div>
+          <p className="text-slate-500 mb-1">Jenis Bantuan</p>
+          <p className="font-medium text-slate-800 capitalize">{item.jenis_bantuan}</p>
+        </div>
+        <div>
+          <p className="text-slate-500 mb-1">Tanggal Mulai</p>
+          <p className="font-medium text-slate-800">{formatDate(item.tanggal_mulai)}</p>
+        </div>
+        <div>
+          <p className="text-slate-500 mb-1">Tanggal Selesai</p>
+          <p className="font-medium text-slate-800">{formatDate(item.tanggal_selesai)}</p>
+        </div>
+      </div>
+
+      {/* Donation Amount */}
+      <div className="rounded-lg bg-white border border-green-200 p-3">
+        <p className="text-xs text-slate-600 mb-1">Total Bantuan</p>
+        <p className="text-base font-bold text-slate-900">
+          {isUang ? formatCurrency(item.jumlah_bantuan) : `${parseInt(item.jumlah_bantuan)} paket`}
+        </p>
+      </div>
+
+      {/* Success Message */}
+      <div className="rounded-lg bg-white border border-green-200 p-3">
+        <div className="flex items-start gap-2">
+          <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-green-700 mb-1">Program Selesai</p>
+            <p className="text-sm text-slate-700">Semua penerima telah diverifikasi dan bantuan telah tersalurkan 100%</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex flex-wrap gap-3">
+        <button 
+          onClick={() => onDetail(item.id_program || item.id)}
+          className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-700"
+        >
+          Lihat Detail Program
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function RejectModal({ open, onClose, onConfirm, programName }) {
+  const [reason, setReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!reason.trim()) {
+      alert('Mohon masukkan alasan penolakan');
+      return;
+    }
+    
+    setSubmitting(true);
+    try {
+      await onConfirm(reason);
+      setReason('');
+      onClose();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleClose = () => {
+    if (!submitting) {
+      setReason('');
+      onClose();
+    }
+  };
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={handleClose}>
+      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+            <XCircle className="w-6 h-6 text-red-600" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-slate-900">Tolak Program Donasi</h3>
+            <p className="text-sm text-slate-600">Masukkan alasan penolakan</p>
+          </div>
+        </div>
+
+        <div className="mb-4">
+          <p className="text-sm text-slate-700 mb-3">
+            Program: <span className="font-semibold">{programName}</span>
+          </p>
+          <label className="block text-sm font-medium text-slate-700 mb-2">
+            Alasan Penolakan <span className="text-red-500">*</span>
+          </label>
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Contoh: Dokumen tidak lengkap, jumlah donasi tidak sesuai, dll..."
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
+            rows="4"
+            maxLength="500"
+            disabled={submitting}
+          />
+          <p className="text-xs text-slate-500 mt-1">{reason.length}/500 karakter</p>
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            onClick={handleClose}
+            disabled={submitting}
+            className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-slate-700 font-medium hover:bg-slate-50 disabled:opacity-50"
+          >
+            Batal
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={submitting || !reason.trim()}
+            className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {submitting ? 'Menolak...' : 'Tolak Program'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminDonations() {
-  const [tab, setTab] = useState("pending"); // "pending" | "terjadwal"
+  const [tab, setTab] = useState("pending"); // "pending" | "terjadwal" | "ditolak" | "selesai"
   const navigate = useNavigate();
   const location = useLocation();
   const [query, setQuery] = useState("");
@@ -233,6 +482,10 @@ export default function AdminDonations() {
   const [error, setError] = useState(null);
   const [pendingPrograms, setPendingPrograms] = useState([]);
   const [activePrograms, setActivePrograms] = useState([]);
+  const [rejectedPrograms, setRejectedPrograms] = useState([]);
+  const [completedPrograms, setCompletedPrograms] = useState([]);
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [programToReject, setProgramToReject] = useState(null);
 
   useEffect(() => {
     console.log('🔄 Component mounted or location.state changed');
@@ -289,7 +542,7 @@ export default function AdminDonations() {
       
       // Load active programs (terjadwal)
       console.log('📅 Fetching active/scheduled programs...');
-      const activeResponse = await adminAPI.getPrograms({ status: 'aktif', per_page: 100 });
+      const activeResponse = await adminAPI.getScheduledPrograms({ per_page: 100 });
       console.log('📅 Active response:', activeResponse);
       console.log('📅 Active response structure:', {
         success: activeResponse.success,
@@ -315,6 +568,28 @@ export default function AdminDonations() {
         setActivePrograms(Array.isArray(activeData) ? activeData : []);
         console.log('✅ Active/scheduled programs loaded:', activeData.length);
         console.log('✅ Sample active program:', activeData[0]);
+      }
+
+      // Load rejected programs
+      console.log('🚫 Fetching rejected programs...');
+      const rejectedResponse = await adminAPI.getRejectedPrograms();
+      console.log('🚫 Rejected response:', rejectedResponse);
+      
+      if (rejectedResponse.success && rejectedResponse.data) {
+        const rejectedData = rejectedResponse.data.data || rejectedResponse.data;
+        setRejectedPrograms(Array.isArray(rejectedData) ? rejectedData : []);
+        console.log('✅ Rejected programs loaded:', rejectedData.length);
+      }
+
+      // Load completed programs
+      console.log('✅ Fetching completed programs...');
+      const completedResponse = await adminAPI.getCompletedPrograms();
+      console.log('✅ Completed response:', completedResponse);
+      
+      if (completedResponse.success && completedResponse.data) {
+        const completedData = completedResponse.data.data || completedResponse.data;
+        setCompletedPrograms(Array.isArray(completedData) ? completedData : []);
+        console.log('✅ Completed programs loaded:', completedData.length);
       }
     } catch (err) {
       console.error("❌ Error loading programs:", err);
@@ -382,6 +657,33 @@ export default function AdminDonations() {
     }
   };
 
+  // New handlers for rejection modal
+  const handleRejectClick = (programId, programName) => {
+    setProgramToReject({ id: programId, name: programName });
+    setRejectModalOpen(true);
+  };
+
+  const handleConfirmReject = async (reason) => {
+    if (!programToReject) return;
+    
+    try {
+      const response = await adminAPI.rejectProgram(programToReject.id, { 
+        alasan_penolakan: reason 
+      });
+      
+      if (response.success) {
+        setRejectModalOpen(false);
+        setProgramToReject(null);
+        alert('Program berhasil ditolak!');
+        await loadData(); // Reload data
+      }
+    } catch (err) {
+      console.error("Error rejecting program:", err);
+      alert('Gagal menolak program: ' + (err.message || 'Terjadi kesalahan'));
+      throw err; // Let modal handle loading state
+    }
+  };
+
   const handleDetailProgram = (programId) => {
     navigate(`/admin/donasi/${programId}`);
   };
@@ -409,7 +711,7 @@ export default function AdminDonations() {
   };
 
   // Filter by search query
-  const filteredPending = pendingPrograms.filter((d) => {
+  const filteredPending = pendingPrograms.filter(d => {
     const q = query.trim().toLowerCase();
     return !q || 
       d.nama_program.toLowerCase().includes(q) || 
@@ -417,7 +719,7 @@ export default function AdminDonations() {
       (d.kategori?.nama_kategori || '').toLowerCase().includes(q);
   });
 
-  const filteredActive = activePrograms.filter((d) => {
+  const filteredActive = activePrograms.filter(d => {
     const q = query.trim().toLowerCase();
     return !q || 
       d.nama_program.toLowerCase().includes(q) || 
@@ -425,7 +727,26 @@ export default function AdminDonations() {
       (d.kategori?.nama_kategori || '').toLowerCase().includes(q);
   });
 
-  const list = tab === "pending" ? filteredPending : filteredActive;
+  const filteredRejected = rejectedPrograms.filter(d => {
+    const q = query.trim().toLowerCase();
+    return !q || 
+      d.nama_program.toLowerCase().includes(q) || 
+      (d.donatur?.nama_organisasi || '').toLowerCase().includes(q) ||
+      (d.kategori?.nama_kategori || '').toLowerCase().includes(q);
+  });
+
+  const filteredCompleted = completedPrograms.filter(d => {
+    const q = query.trim().toLowerCase();
+    return !q || 
+      d.nama_program.toLowerCase().includes(q) || 
+      (d.donatur?.nama_organisasi || '').toLowerCase().includes(q) ||
+      (d.kategori?.nama_kategori || '').toLowerCase().includes(q);
+  });
+
+  const list = tab === "pending" ? filteredPending : 
+               tab === "terjadwal" ? filteredActive : 
+               tab === "ditolak" ? filteredRejected : 
+               filteredCompleted;
 
   return (
     <div className="min-h-screen flex flex-col bg-[#E6EFFA]">
@@ -444,6 +765,8 @@ export default function AdminDonations() {
           <div className="flex flex-col sm:flex-row gap-3">
             <Toggle active={tab === "pending"} icon={Clock4} label={`Pending (${pendingPrograms.length})`} onClick={() => setTab("pending")} />
             <Toggle active={tab === "terjadwal"} icon={Calendar} label={`Terjadwal (${activePrograms.length})`} onClick={() => setTab("terjadwal")} />
+            <Toggle active={tab === "selesai"} icon={CheckCircle2} label={`Selesai (${completedPrograms.length})`} onClick={() => setTab("selesai")} />
+            <Toggle active={tab === "ditolak"} icon={XCircle} label={`Ditolak (${rejectedPrograms.length})`} onClick={() => setTab("ditolak")} />
           </div>
           <div className="mt-3">
             <div className="relative">
@@ -490,7 +813,10 @@ export default function AdminDonations() {
             {list.length === 0 ? (
               <div className="text-center text-slate-600 text-sm py-8 bg-white rounded-xl border border-green-300">
                 {query ? "Tidak ada program yang cocok dengan pencarian" : 
-                 tab === "pending" ? "Tidak ada program pending" : "Tidak ada program terjadwal"}
+                 tab === "pending" ? "Tidak ada program pending" : 
+                 tab === "terjadwal" ? "Tidak ada program terjadwal" :
+                 tab === "selesai" ? "Tidak ada program yang selesai" :
+                 "Tidak ada program yang ditolak"}
               </div>
             ) : (
               list.map((d) =>
@@ -499,16 +825,28 @@ export default function AdminDonations() {
                     key={d.id} 
                     item={d}
                     onApprove={handleApproveProgram}
-                    onReject={handleRejectProgram}
+                    onReject={(id) => handleRejectClick(id, d.nama_program)}
                     onDetail={handleDetailProgram}
                     onSchedule={handleScheduleProgram}
                     onViewProof={handleViewProof}
                   />
-                ) : (
+                ) : tab === "terjadwal" ? (
                   <ScheduledCard 
                     key={d.id_program || d.id} 
                     item={d}
                     onDetail={handleScheduledProgramDetail}
+                  />
+                ) : tab === "selesai" ? (
+                  <CompletedCard
+                    key={d.id_program || d.id}
+                    item={d}
+                    onDetail={handleScheduledProgramDetail}
+                  />
+                ) : (
+                  <RejectedCard
+                    key={d.id_program || d.id}
+                    item={d}
+                    onDetail={handleDetailProgram}
                   />
                 )
               )
@@ -516,6 +854,17 @@ export default function AdminDonations() {
           </div>
         )}
       </main>
+
+      {/* Reject Modal */}
+      <RejectModal
+        open={rejectModalOpen}
+        onClose={() => {
+          setRejectModalOpen(false);
+          setProgramToReject(null);
+        }}
+        onConfirm={handleConfirmReject}
+        programName={programToReject?.name}
+      />
     </div>
   );
 }

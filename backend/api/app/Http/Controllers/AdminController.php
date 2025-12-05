@@ -316,25 +316,125 @@ class AdminController extends Controller
         }
 
         $validated = $request->validate([
-            'alasan_penolakan' => 'nullable|string',
+            'alasan_penolakan' => 'required|string|max:500',
         ]);
 
-        // Update status to ditunda (rejected/postponed)
+        // Update status to ditolak with rejection reason
         $program->update([
-            'status' => 'ditunda',
+            'status' => 'ditolak',
+            'alasan_penolakan' => $validated['alasan_penolakan'],
         ]);
-
-        // Optional: Store rejection reason in keterangan
-        if (!empty($validated['alasan_penolakan'])) {
-            $keterangan = $program->keterangan ?? '';
-            $keterangan .= "\n\nDitolak oleh Admin: " . $validated['alasan_penolakan'];
-            $program->update(['keterangan' => trim($keterangan)]);
-        }
         
         return response()->json([
             'success' => true,
-            'message' => 'Program ditolak dan status diubah menjadi ditunda',
+            'message' => 'Program berhasil ditolak',
             'data' => $program->fresh(['kategori', 'donatur']),
+        ]);
+    }
+
+    public function rejectedPrograms(Request $request)
+    {
+        $query = ProgramBantuan::with(['kategori', 'donatur'])
+            ->where('status', 'ditolak');
+
+        // Search
+        if ($request->has('search') && $request->search != '') {
+            $query->where('nama_program', 'like', '%' . $request->search . '%');
+        }
+
+        // Sorting
+        $sortField = $request->get('sort_by', 'updated_at');
+        $sortOrder = $request->get('sort_order', 'desc');
+        $query->orderBy($sortField, $sortOrder);
+
+        $programs = $query->paginate($request->get('per_page', 10));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Daftar program yang ditolak',
+            'data' => $programs,
+        ]);
+    }
+
+    public function completedPrograms(Request $request)
+    {
+        $query = ProgramBantuan::with(['kategori', 'donatur'])
+            ->where('status', 'aktif')
+            ->whereHas('penerimaPrograms', function($q) {
+                // Only include programs that have recipients
+                $q->whereNotNull('id_penerima');
+            });
+
+        // Filter only programs where all recipients are verified (100% progress)
+        $query->whereRaw('(
+            SELECT COUNT(*) 
+            FROM penerima_program pp 
+            WHERE pp.id_program = program_bantuan.id_program
+        ) = (
+            SELECT COUNT(DISTINCT tp.id_penerima_program) 
+            FROM transaksi_penyaluran tp
+            JOIN penerima_program pp2 ON tp.id_penerima_program = pp2.id_penerima_program
+            WHERE pp2.id_program = program_bantuan.id_program 
+            AND tp.status_penyaluran = "selesai"
+        )');
+
+        // Search
+        if ($request->has('search') && $request->search != '') {
+            $query->where('nama_program', 'like', '%' . $request->search . '%');
+        }
+
+        // Sorting
+        $sortField = $request->get('sort_by', 'updated_at');
+        $sortOrder = $request->get('sort_order', 'desc');
+        $query->orderBy($sortField, $sortOrder);
+
+        $programs = $query->paginate($request->get('per_page', 10));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Daftar program yang sudah selesai',
+            'data' => $programs,
+        ]);
+    }
+
+    public function scheduledPrograms(Request $request)
+    {
+        $query = ProgramBantuan::with(['kategori', 'donatur'])
+            ->where('status', 'aktif')
+            ->whereHas('penerimaPrograms', function($q) {
+                // Only include programs that have recipients
+                $q->whereNotNull('id_penerima');
+            });
+
+        // Filter only programs where NOT all recipients are verified (progress < 100%)
+        $query->whereRaw('(
+            SELECT COUNT(*) 
+            FROM penerima_program pp 
+            WHERE pp.id_program = program_bantuan.id_program
+        ) > (
+            SELECT COUNT(DISTINCT tp.id_penerima_program) 
+            FROM transaksi_penyaluran tp
+            JOIN penerima_program pp2 ON tp.id_penerima_program = pp2.id_penerima_program
+            WHERE pp2.id_program = program_bantuan.id_program 
+            AND tp.status_penyaluran = "selesai"
+        )');
+
+        // Search
+        if ($request->has('search') && $request->search != '') {
+            $query->where('nama_program', 'like', '%' . $request->search . '%');
+        }
+
+        // Sorting
+        $sortField = $request->get('sort_by', 'updated_at');
+        $sortOrder = $request->get('sort_order', 'desc');
+        $query->orderBy($sortField, $sortOrder);
+
+        $programs = $query->paginate($request->get('per_page', 10));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Daftar program terjadwal yang belum selesai',
+            'data' => $programs,
         ]);
     }
 
@@ -581,14 +681,31 @@ class AdminController extends Controller
 
     public function donorDetail($id)
     {
-        $donor = Donatur::with(['programBantuan.kategori'])->findOrFail($id);
+        // Load donor with programs, exclude rejected programs
+        $donor = Donatur::with(['programBantuan' => function ($query) {
+            $query->where('status', '!=', 'ditolak');
+        }, 'programBantuan.kategori'])->findOrFail($id);
         
-        // Add statistics
+        // Add verified and completed recipient count to each program
+        $donor->programBantuan->each(function ($program) {
+            $program->penerima_count = PenerimaProgram::join('penerima', 'penerima_program.id_penerima', '=', 'penerima.id_penerima')
+                ->where('penerima_program.id_program', $program->id_program)
+                ->where('penerima.status_verifikasi', 'disetujui')
+                ->where('penerima_program.status_penerimaan', 'selesai')
+                ->count();
+        });
+        
+        // Add statistics (only count verified recipients with completed status)
+        $programIds = $donor->programBantuan->pluck('id_program');
         $donor->statistics = [
             'total_programs' => $donor->programBantuan->count(),
             'active_programs' => $donor->programBantuan->where('status', 'aktif')->count(),
             'total_contribution' => $donor->programBantuan->sum('jumlah_bantuan'),
-            'total_recipients' => PenerimaProgram::whereIn('id_program', $donor->programBantuan->pluck('id_program'))->count(),
+            'total_recipients' => PenerimaProgram::join('penerima', 'penerima_program.id_penerima', '=', 'penerima.id_penerima')
+                ->whereIn('penerima_program.id_program', $programIds)
+                ->where('penerima.status_verifikasi', 'disetujui')
+                ->where('penerima_program.status_penerimaan', 'selesai')
+                ->count(),
         ];
 
         return response()->json([
@@ -1040,10 +1157,7 @@ class AdminController extends Controller
 
         // Update penerima program status if transaction is completed
         if ($transaksi->status_penyaluran === 'selesai') {
-            $newTotal = $totalReceived + $request->jumlah_diterima;
-            if ($newTotal >= $program->jumlah_bantuan) {
-                $penerimaProgram->update(['status_penerimaan' => 'selesai']);
-            }
+            $penerimaProgram->update(['status_penerimaan' => 'selesai']);
         }
 
         return response()->json([
@@ -1069,14 +1183,16 @@ class AdminController extends Controller
 
         $transaksi->update($validated);
 
-        // Update penerima program status if needed
+        // Update penerima program status based on transaction status
         if (isset($validated['status_penyaluran'])) {
             $penerimaProgram = $transaksi->penerimaProgram;
-            $program = $penerimaProgram->program;
-            $totalReceived = $penerimaProgram->transaksiPenyaluran->sum('jumlah_diterima');
-
-            if ($validated['status_penyaluran'] === 'selesai' && $totalReceived >= $program->jumlah_bantuan) {
+            
+            if ($validated['status_penyaluran'] === 'selesai') {
                 $penerimaProgram->update(['status_penerimaan' => 'selesai']);
+            } elseif ($validated['status_penyaluran'] === 'dijadwalkan') {
+                $penerimaProgram->update(['status_penerimaan' => 'menunggu']);
+            } elseif ($validated['status_penyaluran'] === 'dibatalkan') {
+                $penerimaProgram->update(['status_penerimaan' => 'batal']);
             }
         }
 
