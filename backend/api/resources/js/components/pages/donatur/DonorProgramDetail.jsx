@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import NavbarDonatur from "../../layout/NavbarDonatur";
@@ -169,8 +170,20 @@ export default function DonorProgramDetail() {
     );
   }
 
-  const statusInfo = getStatusInfo(program.status);
   const progress = calculateProgress();
+  const isCompleted = progress >= 100;
+  
+  // Determine status based on actual progress
+  let statusInfo;
+  if (program.status === 'ditolak') {
+    statusInfo = { status: 'ditolak', label: 'Ditolak', color: 'red' };
+  } else if (isCompleted) {
+    statusInfo = { status: 'selesai', label: 'Selesai', color: 'green' };
+  } else if (program.jadwal && program.jadwal.length > 0) {
+    statusInfo = { status: 'terjadwal', label: 'Terjadwal', color: 'blue' };
+  } else {
+    statusInfo = { status: 'pending', label: 'Menunggu Jadwal', color: 'yellow' };
+  }
 
   return (
     <div className="min-h-screen bg-white">

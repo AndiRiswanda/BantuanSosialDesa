@@ -125,10 +125,17 @@ export default function AdminScheduledProgramDetail() {
                 <h1 className="text-2xl font-bold text-slate-900">
                   {program.nama_program}
                 </h1>
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-emerald-100 text-emerald-700 text-sm font-semibold">
-                  <CheckCircle className="w-4 h-4" />
-                  Aktif & Terjadwal
-                </span>
+                {program.statistics?.persentase_selesai >= 100 ? (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-green-100 text-green-700 text-sm font-semibold">
+                    <CheckCircle className="w-4 h-4" />
+                    Selesai
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-emerald-100 text-emerald-700 text-sm font-semibold">
+                    <CheckCircle className="w-4 h-4" />
+                    Aktif & Terjadwal
+                  </span>
+                )}
               </div>
               <p className="text-slate-600">
                 Donatur: {program.donatur?.nama_organisasi || program.donatur?.nama_lengkap || '-'}

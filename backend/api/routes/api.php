@@ -79,6 +79,9 @@ Route::middleware('auth:sanctum')->group(function () {
         // Manajemen Program
         Route::get('/programs', [AdminController::class, 'programs']);
         Route::get('/programs/pending/list', [AdminController::class, 'pendingPrograms']); // Harus sebelum /programs/{id}
+        Route::get('/programs/rejected/list', [AdminController::class, 'rejectedPrograms']); // List program ditolak
+        Route::get('/programs/completed/list', [AdminController::class, 'completedPrograms']); // List program selesai
+        Route::get('/programs/scheduled/list', [AdminController::class, 'scheduledPrograms']); // List program terjadwal (belum selesai)
         Route::post('/programs/{id}/approve', [AdminController::class, 'approveProgram']);
         Route::post('/programs/{id}/reject', [AdminController::class, 'rejectProgram']);
         Route::get('/programs/{id}', [AdminController::class, 'programDetail']);

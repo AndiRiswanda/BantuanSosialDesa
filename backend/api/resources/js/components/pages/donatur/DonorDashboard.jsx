@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import NavbarDonatur from "../../layout/NavbarDonatur";
 import { CircleDollarSign, Users, HandHeart, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import hero from "../../../assets/lovehand 1.png";
 import api from "../../../services/api";
 
 export default function DonorDashboard() {
+  const navigate = useNavigate();
   const [profileData, setProfileData] = useState(null);
   const [dashboardStats, setDashboardStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -138,10 +140,16 @@ export default function DonorDashboard() {
           </p>
 
           <div className="mt-6 flex items-center justify-center gap-4 flex-wrap">
-            <button className="px-5 py-2.5 rounded-lg border border-green-600 text-green-700 font-semibold hover:bg-green-50">
+            <button 
+              onClick={() => navigate('/donatur/programku')}
+              className="px-5 py-2.5 rounded-lg border border-green-600 text-green-700 font-semibold hover:bg-green-50"
+            >
               Riwayat Donasi Anda
             </button>
-            <button className="px-5 py-2.5 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 shadow">
+            <button 
+              onClick={() => navigate('/donatur/donasi-baru')}
+              className="px-5 py-2.5 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 shadow"
+            >
               Donasi Sekarang
             </button>
           </div>

@@ -25,6 +25,7 @@ class ProgramBantuan extends Model
         'kriteria_penerima',
         'keterangan',
         'status',
+        'alasan_penolakan',
         'bukti_transfer',
     ];
 

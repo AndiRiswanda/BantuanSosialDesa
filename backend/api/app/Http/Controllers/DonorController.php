@@ -93,8 +93,23 @@ class DonorController extends Controller
                     return $pp->transaksiPenyaluran && $pp->transaksiPenyaluran->count() > 0;
                 });
                 
+                // Calculate statistics
+                $totalPenerima = $program->penerimaPrograms->count();
+                $totalTersalurkan = $program->penerimaPrograms->filter(function($pp) {
+                    return $pp->transaksiPenyaluran && $pp->transaksiPenyaluran->where('status_penyaluran', 'selesai')->count() > 0;
+                })->count();
+                
+                $persentaseSelesai = $totalPenerima > 0 
+                    ? round(($totalTersalurkan / $totalPenerima) * 100, 2) 
+                    : 0;
+                
                 $programData = $program->toArray();
                 $programData['has_schedule'] = $hasSchedule;
+                $programData['statistics'] = [
+                    'total_penerima' => $totalPenerima,
+                    'total_tersalurkan' => $totalTersalurkan,
+                    'persentase_selesai' => $persentaseSelesai,
+                ];
                 
                 return $programData;
             });

@@ -338,6 +338,18 @@ export const adminAPI = {
     const queryString = new URLSearchParams(params).toString();
     return apiFetch(`/api/admin/programs/pending/list${queryString ? '?' + queryString : ''}`);
   },
+  getRejectedPrograms: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiFetch(`/api/admin/programs/rejected/list${queryString ? '?' + queryString : ''}`);
+  },
+  getCompletedPrograms: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiFetch(`/api/admin/programs/completed/list${queryString ? '?' + queryString : ''}`);
+  },
+  getScheduledPrograms: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiFetch(`/api/admin/programs/scheduled/list${queryString ? '?' + queryString : ''}`);
+  },
   approveProgram: (id) =>
     apiFetch(`/api/admin/programs/${id}/approve`, {
       method: 'POST',

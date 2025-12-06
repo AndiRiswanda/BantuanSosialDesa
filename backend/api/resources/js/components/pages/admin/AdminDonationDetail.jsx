@@ -112,11 +112,13 @@ export default function AdminDonationDetail() {
   const isUang = program.jenis_bantuan === 'uang';
   const isPending = program.status === 'pending';
   const isAktif = program.status === 'aktif';
+  const isDitolak = program.status === 'ditolak';
   
   console.log("=== PROGRAM DETAIL RENDER ===");
   console.log("Program status:", program.status);
   console.log("isPending:", isPending);
   console.log("isAktif:", isAktif);
+  console.log("isDitolak:", isDitolak);
 
   return (
     <div className="min-h-screen flex flex-col bg-[#E6EFFA]">
@@ -139,9 +141,17 @@ export default function AdminDonationDetail() {
           {/* Title and Badge */}
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
-              <h1 className="text-2xl font-bold text-slate-900 mb-2">
-                {program.nama_program}
-              </h1>
+              <div className="flex items-center gap-3 mb-2">
+                <h1 className="text-2xl font-bold text-slate-900">
+                  {program.nama_program}
+                </h1>
+                {isDitolak && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-red-100 text-red-700 text-sm font-semibold">
+                    <XCircle className="w-4 h-4" />
+                    Ditolak
+                  </span>
+                )}
+              </div>
               <p className="text-slate-600">
                 Donatur: {program.donatur?.nama_organisasi || program.donatur?.nama_lengkap || '-'}
               </p>
@@ -180,24 +190,39 @@ export default function AdminDonationDetail() {
           </div>
 
           {/* Status */}
-          <div>
-            <span className={`inline-block px-4 py-2 rounded-lg text-sm font-medium ${
-              isAktif 
-                ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' 
-                : isPending 
-                  ? 'bg-amber-50 border border-amber-200 text-amber-800'
-                  : 'bg-slate-50 border border-slate-200 text-slate-800'
-            }`}>
-              {isAktif 
-                ? '✓ Program Sudah Dijadwalkan dan Aktif' 
-                : isPending && isUang
-                  ? (hasBuktiTransfer ? 'Menunggu penjadwalan' : 'Menunggu upload bukti transfer')
-                  : isPending
-                    ? 'Menunggu penjadwalan'
-                    : program.status
-              }
-            </span>
-          </div>
+          {!isDitolak && (
+            <div>
+              <span className={`inline-block px-4 py-2 rounded-lg text-sm font-medium ${
+                isAktif 
+                  ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' 
+                  : isPending 
+                    ? 'bg-amber-50 border border-amber-200 text-amber-800'
+                    : 'bg-slate-50 border border-slate-200 text-slate-800'
+              }`}>
+                {isAktif 
+                  ? '✓ Program Sudah Dijadwalkan dan Aktif' 
+                  : isPending && isUang
+                    ? (hasBuktiTransfer ? 'Menunggu penjadwalan' : 'Menunggu upload bukti transfer')
+                    : isPending
+                      ? 'Menunggu penjadwalan'
+                      : program.status
+                }
+              </span>
+            </div>
+          )}
+
+          {/* Rejection Reason */}
+          {isDitolak && program.alasan_penolakan && (
+            <div className="rounded-lg bg-red-50 border border-red-200 p-4">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-red-700 mb-1">Alasan Penolakan:</p>
+                  <p className="text-sm text-slate-700">{program.alasan_penolakan}</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Action Buttons - Only show for pending programs */}
           {isPending && (

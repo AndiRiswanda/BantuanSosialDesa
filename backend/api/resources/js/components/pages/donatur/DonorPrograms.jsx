@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useMemo, useState, useEffect } from "react";
 import NavbarDonatur from "../../layout/NavbarDonatur";
 import { Filter, Search, UploadCloud, Info, CalendarDays, BadgeDollarSign, PackageCheck, Loader2 } from "lucide-react";
@@ -10,6 +11,7 @@ function StatusPill({ color = "slate", children }) {
     green: "bg-green-100 text-green-700",
     blue: "bg-blue-100 text-blue-700",
     yellow: "bg-yellow-100 text-yellow-700",
+    red: "bg-red-100 text-red-700",
     slate: "bg-slate-100 text-slate-700",
   };
   return (
@@ -18,6 +20,14 @@ function StatusPill({ color = "slate", children }) {
 }
 
 function ProgramCard({ title, start, end, type, amount, status, cta, note, progress, onDetail }) {
+  // Determine note background color based on status
+  const noteColorClass = status.color === 'red' 
+    ? 'bg-red-50 border-red-200'
+    : 'bg-yellow-50 border-yellow-200';
+  const noteIconColor = status.color === 'red'
+    ? 'text-red-600'
+    : 'text-yellow-600';
+
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
       <div className="px-4 md:px-5 py-4">
@@ -45,8 +55,8 @@ function ProgramCard({ title, start, end, type, amount, status, cta, note, progr
         </div>
 
         {note && (
-          <div className="mt-3 text-xs text-slate-600 bg-yellow-50 border border-yellow-200 rounded-lg p-2.5 flex items-start gap-2">
-            <Info className="w-4 h-4 text-yellow-600 mt-0.5"/>
+          <div className={`mt-3 text-xs text-slate-600 border rounded-lg p-2.5 flex items-start gap-2 ${noteColorClass}`}>
+            <Info className={`w-4 h-4 mt-0.5 ${noteIconColor}`}/>
             <span>{note}</span>
           </div>
         )}
@@ -115,12 +125,24 @@ export default function DonorPrograms() {
           ? `Rp ${parseFloat(program.jumlah_bantuan).toLocaleString('id-ID')}`
           : `${parseFloat(program.jumlah_bantuan).toLocaleString('id-ID')} unit`;
         
-        // Map status dari database ke UI dengan mempertimbangkan jadwal
+        // Map status dari database ke UI dengan mempertimbangkan jadwal dan progress
         let uiStatus = 'PENDING';
         let statusColor = 'yellow';
-        if (program.status === 'aktif') {
-          // Jika status aktif dan sudah dijadwalkan, masuk ke SCHEDULED
-          if (program.has_schedule) {
+        
+        // Get actual progress from statistics
+        const actualProgress = program.statistics?.persentase_selesai || 0;
+        const isCompleted = actualProgress >= 100;
+        
+        if (program.status === 'ditolak') {
+          uiStatus = 'REJECTED';
+          statusColor = 'red';
+        } else if (program.status === 'aktif') {
+          if (isCompleted) {
+            // Jika progress sudah 100%, masuk ke COMPLETED
+            uiStatus = 'COMPLETED';
+            statusColor = 'green';
+          } else if (program.has_schedule) {
+            // Jika status aktif dan sudah dijadwalkan tapi belum selesai, masuk ke SCHEDULED
             uiStatus = 'SCHEDULED';
             statusColor = 'blue';
           } else {
@@ -140,7 +162,11 @@ export default function DonorPrograms() {
         let ctaKey = undefined;
         let note = null;
         
-        if (program.status === 'pending' && program.jenis_bantuan === 'uang') {
+        if (program.status === 'ditolak') {
+          note = program.alasan_penolakan 
+            ? `Ditolak: ${program.alasan_penolakan}` 
+            : 'Program ditolak oleh admin';
+        } else if (program.status === 'pending' && program.jenis_bantuan === 'uang') {
           if (program.bukti_transfer) {
             ctaKey = 'view';
             note = 'Menunggu review admin...';
@@ -148,6 +174,8 @@ export default function DonorPrograms() {
             ctaKey = 'upload';
             note = 'Menunggu upload bukti transfer';
           }
+        } else if (isCompleted) {
+          note = 'Program telah selesai - semua bantuan telah tersalurkan';
         } else if (program.status === 'aktif' && program.has_schedule) {
           note = 'Program sedang berjalan dan sudah dijadwalkan';
         } else if (program.status === 'aktif' && !program.has_schedule) {
@@ -165,7 +193,7 @@ export default function DonorPrograms() {
           note: note,
           ctaKey: ctaKey,
           buktiTransfer: program.bukti_transfer,
-          progress: program.status === 'selesai' ? 100 : (program.status === 'aktif' ? 50 : 0),
+          progress: actualProgress, // Use actual progress from statistics
         };
       });
       
@@ -183,6 +211,7 @@ export default function DonorPrograms() {
     PENDING: { label: "Pending", color: "yellow" },
     SCHEDULED: { label: "Terjadwal", color: "blue" },
     COMPLETED: { label: "Selesai", color: "green" },
+    REJECTED: { label: "Ditolak", color: "red" },
   };
 
   // Derived, filtered data
@@ -203,6 +232,7 @@ export default function DonorPrograms() {
       PENDING: filtered.filter((p) => p.status === "PENDING"),
       SCHEDULED: filtered.filter((p) => p.status === "SCHEDULED"),
       COMPLETED: filtered.filter((p) => p.status === "COMPLETED"),
+      REJECTED: filtered.filter((p) => p.status === "REJECTED"),
     }),
     [filtered]
   );
@@ -272,6 +302,12 @@ export default function DonorPrograms() {
                 onClick={() => setStatusFilter("COMPLETED")}
               >
                 Selesai
+              </button>
+              <button
+                className={`${pillBase} ${statusFilter === "REJECTED" ? pillActive : pillIdle}`}
+                onClick={() => setStatusFilter("REJECTED")}
+              >
+                Ditolak
               </button>
             </div>
 
@@ -389,6 +425,33 @@ export default function DonorPrograms() {
                   amount={p.amount}
                   status={statusMeta[p.status]}
                   progress={p.progress}
+                  onDetail={() => navigate(`/donatur/programku/${p.id}`)}
+                />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Rejected */}
+      {(statusFilter === "ALL" || statusFilter === "REJECTED") && groups.REJECTED.length > 0 && (
+        <section className="bg-white pb-10">
+          <div className="max-w-6xl mx-auto px-4 py-6">
+            <h3 className="font-semibold text-[#0B2B5E] flex items-center gap-2"><span className="w-2 h-2 bg-red-600 rounded-full"/> Ditolak oleh Admin</h3>
+            <p className="text-xs text-slate-600 mt-1">
+              Program bantuan ini ditolak oleh admin. Silakan lihat detail untuk mengetahui alasan penolakan.
+            </p>
+            <div className="mt-4 space-y-4">
+              {groups.REJECTED.map((p) => (
+                <ProgramCard
+                  key={p.id}
+                  title={p.title}
+                  start={p.start}
+                  end={p.end}
+                  type={p.type}
+                  amount={p.amount}
+                  status={statusMeta[p.status]}
+                  note={p.note}
                   onDetail={() => navigate(`/donatur/programku/${p.id}`)}
                 />
               ))}

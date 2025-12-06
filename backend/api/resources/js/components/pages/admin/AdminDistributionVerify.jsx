@@ -410,6 +410,33 @@ export default function AdminDistributionVerify() {
     return iso;
   };
 
+  const calculateProgress = () => {
+    if (!program?.statistics) {
+      return { value: 0, note: "(0/0 KK)" };
+    }
+    
+    const totalPenerima = program.statistics.total_penerima || 0;
+    const totalTersalurkan = program.statistics.total_tersalurkan || 0;
+    const percentage = totalPenerima > 0 ? Math.round((totalTersalurkan / totalPenerima) * 100) : 0;
+    
+    return {
+      value: percentage,
+      note: `(${totalTersalurkan}/${totalPenerima} KK)`
+    };
+  };
+
+  const getStatusBadge = () => {
+    const progress = calculateProgress();
+    if (progress.value >= 100) {
+      return { label: 'Selesai', color: 'bg-green-100 text-green-800 border border-green-200' };
+    } else if (program.status === 'aktif' || program.status === 'terjadwal') {
+      return { label: 'Aktif', color: 'bg-blue-100 text-blue-800 border border-blue-200' };
+    } else if (program.status === 'selesai') {
+      return { label: 'Selesai', color: 'bg-green-100 text-green-800 border border-green-200' };
+    }
+    return { label: program.status || 'Aktif', color: 'bg-blue-100 text-blue-800 border border-blue-200' };
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col bg-[#E6EFFA]">
@@ -474,8 +501,8 @@ export default function AdminDistributionVerify() {
                   )}
                 </div>
               </div>
-              <Chip className="bg-blue-100 text-blue-800 border border-blue-200">
-                {program.status === 'aktif' ? 'Aktif' : program.status === 'terjadwal' ? 'Terjadwal' : program.status}
+              <Chip className={getStatusBadge().color}>
+                {getStatusBadge().label}
               </Chip>
             </div>
 
@@ -499,7 +526,12 @@ export default function AdminDistributionVerify() {
             <div className="grid sm:grid-cols-2 gap-3 mt-3">
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
                 <div className="flex items-center gap-2 text-slate-800 font-medium">📦 Jumlah Donasi</div>
-                <p className="mt-1 text-slate-700">{program.jumlah_donasi || '-'}</p>
+                <p className="mt-1 text-slate-700">
+                  {program.jenis_bantuan === 'uang' 
+                    ? `Rp ${parseFloat(program.jumlah_bantuan || 0).toLocaleString('id-ID')}`
+                    : `${parseFloat(program.jumlah_bantuan || 0).toLocaleString('id-ID')} unit`
+                  }
+                </p>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
                 <div className="flex items-center gap-2 text-slate-800 font-medium"><Info className="w-4 h-4 text-emerald-600" /> Kriteria Penerima Donasi</div>
@@ -514,7 +546,7 @@ export default function AdminDistributionVerify() {
           </div>
         </section>
 
-        <div className="mt-4"><Progress value={20} note="(20/100 KK)" /></div>
+        <div className="mt-4"><Progress value={calculateProgress().value} note={calculateProgress().note} /></div>
 
         {/* Schedule table */}
         <section className="bg-white rounded-xl shadow-sm border border-emerald-300 mt-4">
