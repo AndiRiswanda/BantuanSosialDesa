@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useRef, useState, useEffect } from "react";
 import NavbarAdmin from "../../layout/NavbarAdmin";
 import { ArrowLeft, CloudUpload, Eye, Loader2 } from "lucide-react";
@@ -156,10 +157,10 @@ export default function AdminRecipientEdit() {
             <div>
               <p className="text-xs text-slate-500">Status Verifikasi</p>
               <select value={form.status_verifikasi} onChange={onChange("status_verifikasi")} className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500">
-                <option value="pending">Pending</option>
+                <option value="belum_mengajukan">Belum Mengajukan</option>
+                <option value="pending">Menunggu</option>
                 <option value="disetujui">Disetujui</option>
                 <option value="ditolak">Ditolak</option>
-                <option value="terverifikasi">Terverifikasi</option>
               </select>
             </div>
           </div>

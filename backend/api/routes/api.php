@@ -25,6 +25,14 @@ Route::post('/admin/login', [AuthController::class, 'adminLogin']);
 Route::get('/programs', [ProgramController::class, 'index']);
 Route::get('/programs/{id}', [ProgramController::class, 'show']);
 
+// Public routes for guest (beranda and penyaluran pages)
+Route::prefix('public')->group(function () {
+    Route::get('/programs/active', [\App\Http\Controllers\PublicController::class, 'activePrograms']);
+    Route::get('/programs/schedules', [\App\Http\Controllers\PublicController::class, 'programsWithSchedules']);
+    Route::get('/distributions/completed', [\App\Http\Controllers\PublicController::class, 'completedDistributions']);
+    Route::get('/statistics', [\App\Http\Controllers\PublicController::class, 'statistics']);
+});
+
 // Protected routes (require authentication)
 Route::middleware('auth:sanctum')->group(function () {
     // Logout

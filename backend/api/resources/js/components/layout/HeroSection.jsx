@@ -15,7 +15,7 @@ export default function HeroSection() {
           Wujudkan penyaluran bantuan sosial yang tepat sasaran,
           transparan, dan akuntable melalui platform ini.
         </p>
-        <Link to="/register/donatur" className="inline-block bg-green-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-green-700 hover:shadow-lg hover:scale-105 transition-all duration-300 active:scale-95">
+        <Link to="/login/donatur" className="inline-block bg-green-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-green-700 hover:shadow-lg hover:scale-105 transition-all duration-300 active:scale-95">
           Donasi Sekarang
         </Link>
       </div>

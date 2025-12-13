@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from "react";
 import { ArrowLeft, Calendar, CircleDollarSign, Loader2 } from "lucide-react";
 import NavbarAdmin from "../../layout/NavbarAdmin";
@@ -113,9 +114,10 @@ export default function AdminDonorDetail() {
         <div className="mt-5 space-y-4">
           {donor.program_bantuan && donor.program_bantuan.length > 0 ? (
             donor.program_bantuan.map((program) => {
-              const totalTarget = program.jumlah_penerima || 0;
-              const distributed = program.penerima_count || 0;
+              const totalTarget = program.total_penerima || 0;
+              const distributed = program.penerima_tersalurkan || 0;
               const progressPct = totalTarget > 0 ? Math.round((distributed / totalTarget) * 100) : 0;
+              const isCompleted = progressPct >= 100;
               
               return (
             <div key={program.id_program} className="rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -148,7 +150,7 @@ export default function AdminDonorDetail() {
                     </div>
                   </div>
                   <button 
-                    onClick={() => navigate(`/admin/penyaluran/${program.id_program}`)} 
+                    onClick={() => navigate(`/admin/penyaluran/${program.id_program}/verifikasi`)} 
                     className="rounded-md bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
                   >
                     Detail Program
@@ -167,13 +169,16 @@ export default function AdminDonorDetail() {
 
                 <div className="mt-3">
                   <span className={`inline-block w-full text-center rounded-lg border px-4 py-2 text-sm font-medium ${
-                    program.status === 'aktif' 
+                    isCompleted
+                      ? 'border-slate-300 bg-slate-200 text-slate-700'
+                      : program.status === 'aktif' 
                       ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
                       : program.status === 'selesai'
                       ? 'border-blue-300 bg-blue-50 text-blue-700'
                       : 'border-slate-300 bg-slate-50 text-slate-700'
                   }`}>
-                    {program.status === 'aktif' ? 'Program Aktif' :
+                    {isCompleted ? 'Selesai - Program Tidak Aktif' :
+                     program.status === 'aktif' ? 'Program Aktif' :
                      program.status === 'selesai' ? 'Program Selesai' :
                      program.status === 'dijadwalkan' ? 'Dijadwalkan' :
                      'Menunggu'}

@@ -32,7 +32,7 @@ class AuthController extends Controller
 
         if (!Hash::check($request->password, $donatur->password)) {
             throw ValidationException::withMessages([
-                'password' => ['Username/Password yang Anda masukkan salah.'],
+                'password' => ['Email/Password yang Anda masukkan salah.'],
             ]);
         }
 
@@ -188,7 +188,7 @@ class AuthController extends Controller
 
         if (!Hash::check($request->password, $admin->password)) {
             throw ValidationException::withMessages([
-                'password' => ['Username/Password yang Anda masukkan salah.'],
+                'password' => ['Email/Password yang Anda masukkan salah.'],
             ]);
         }
 

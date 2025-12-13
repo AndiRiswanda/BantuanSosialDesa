@@ -101,37 +101,61 @@ export default function AdminDistribution() {
       setLoading(true);
       setError(null);
       
-      const response = await adminAPI.getPrograms();
-      console.log("Programs data:", response);
+      const params = {
+        page: page,
+        per_page: 10
+      };
+
+      if (query.trim()) {
+        params.search = query.trim();
+      }
+      
+      const response = await adminAPI.getScheduledPrograms(params);
+      console.log("Scheduled Programs data:", response);
       
       if (response.success && response.data) {
-        const responseData = response.data.data || response.data;
-        
-        // Filter only active or scheduled programs
-        const activePrograms = Array.isArray(responseData) 
-          ? responseData.filter(p => p.status === 'aktif' || p.status === 'terjadwal')
-          : [];
-        
-        // Manual pagination
-        const perPage = 10;
-        const total = activePrograms.length;
-        const lastPage = Math.ceil(total / perPage);
-        const start = (page - 1) * perPage;
-        const paginatedPrograms = activePrograms.slice(start, start + perPage);
-        
-        setPrograms(paginatedPrograms);
-        setPagination({
-          current_page: page,
-          last_page: lastPage,
-          total: total
-        });
+        // Check if response has pagination structure
+        if (response.data.data && Array.isArray(response.data.data)) {
+          // Server-side paginated response
+          setPrograms(response.data.data);
+          setPagination({
+            current_page: response.data.current_page || page,
+            last_page: response.data.last_page || 1,
+            total: response.data.total || 0
+          });
+        } else if (Array.isArray(response.data)) {
+          // Non-paginated array response
+          setPrograms(response.data);
+          setPagination({
+            current_page: 1,
+            last_page: 1,
+            total: response.data.length
+          });
+        } else {
+          setPrograms([]);
+          setPagination({
+            current_page: 1,
+            last_page: 1,
+            total: 0
+          });
+        }
       } else {
         setPrograms([]);
+        setPagination({
+          current_page: 1,
+          last_page: 1,
+          total: 0
+        });
       }
     } catch (err) {
       console.error("Error loading programs:", err);
       setError(err.message || "Gagal memuat data program");
       setPrograms([]);
+      setPagination({
+        current_page: 1,
+        last_page: 1,
+        total: 0
+      });
     } finally {
       setLoading(false);
     }
@@ -145,7 +169,13 @@ export default function AdminDistribution() {
   // Search with debounce
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      loadPrograms(1); // Reset to page 1 on search
+      if (pagination.current_page === 1) {
+        loadPrograms(1);
+      } else {
+        // Reset to page 1 on search
+        setPagination(prev => ({ ...prev, current_page: 1 }));
+        loadPrograms(1);
+      }
     }, 500);
     
     return () => clearTimeout(timeoutId);
@@ -172,16 +202,6 @@ export default function AdminDistribution() {
     }
     return `${startMonth} - ${endMonth} ${year}`;
   };
-
-  const filteredPrograms = programs.filter(program => {
-    if (!query.trim()) return true;
-    const searchLower = query.toLowerCase();
-    return (
-      program.nama_program?.toLowerCase().includes(searchLower) ||
-      program.deskripsi?.toLowerCase().includes(searchLower) ||
-      program.kategori?.nama_kategori?.toLowerCase().includes(searchLower)
-    );
-  });
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-blue-50">
@@ -230,7 +250,7 @@ export default function AdminDistribution() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
-                  {filteredPrograms.map((program) => (
+                  {programs.map((program) => (
                     <tr key={program.id_program} className="hover:bg-slate-50 transition-colors">
                       <td className="align-top px-6 py-4 text-slate-800 font-medium">
                         {program.nama_program || '-'}
@@ -259,7 +279,7 @@ export default function AdminDistribution() {
                       </td>
                     </tr>
                   ))}
-                  {filteredPrograms.length === 0 && (
+                  {programs.length === 0 && (
                     <tr>
                       <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
                         {query ? 'Tidak ada program yang sesuai dengan pencarian.' : 'Belum ada program penyaluran aktif.'}
@@ -281,7 +301,7 @@ export default function AdminDistribution() {
 
             {/* Mobile cards */}
             <div className="md:hidden space-y-4">
-              {filteredPrograms.map((program) => (
+              {programs.map((program) => (
                 <section 
                   key={program.id_program} 
                   className="bg-white rounded-xl shadow-sm border border-slate-200 p-4"
@@ -311,7 +331,7 @@ export default function AdminDistribution() {
                   </button>
                 </section>
               ))}
-              {filteredPrograms.length === 0 && (
+              {programs.length === 0 && (
                 <div className="text-center bg-white rounded-xl shadow-sm border border-slate-200 py-12">
                   <p className="text-slate-600 text-sm">
                     {query ? 'Tidak ada program yang sesuai dengan pencarian.' : 'Belum ada program penyaluran aktif.'}
