@@ -40,6 +40,7 @@ function TypePill({ icon: Icon, label, active, onClick }) {
 
 function ProgramCard({ item, onDetail }) {
   const safeProgress = Math.min(100, Math.max(0, item.statistics?.persentase_selesai || 0));
+  const isCompleted = safeProgress >= 100;
   
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('id-ID', {
@@ -74,9 +75,13 @@ function ProgramCard({ item, onDetail }) {
           </div>
         </div>
         <span className={`inline-flex items-center px-2.5 py-0.5 text-[11px] font-semibold rounded-full ${
-          item.status === "aktif" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
+          isCompleted 
+            ? "bg-slate-200 text-slate-700" 
+            : item.status === "aktif" 
+            ? "bg-emerald-100 text-emerald-800" 
+            : "bg-amber-100 text-amber-800"
         }`}>
-          {item.status === "aktif" ? "Aktif" : "Nonaktif"}
+          {isCompleted ? "Nonaktif" : item.status === "aktif" ? "Aktif" : "Nonaktif"}
         </span>
       </div>
 
@@ -141,9 +146,8 @@ export default function AdminPrograms() {
       setError(null);
       const params = {};
       
-      if (statusFilter !== "Semua") {
-        params.status = statusFilter.toLowerCase();
-      }
+      // Don't send status filter to API, we'll filter in frontend
+      // to handle programs with 100% progress
       if (typeFilter !== "Semua") {
         params.jenis_bantuan = typeFilter.toLowerCase();
       }
@@ -170,18 +174,35 @@ export default function AdminPrograms() {
     }
   };
 
-  // Reload when filters change
+  // Reload when filters change (excluding statusFilter since it's frontend-only)
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       loadPrograms();
     }, 500);
     
     return () => clearTimeout(timeoutId);
-  }, [statusFilter, typeFilter, query]);
+  }, [typeFilter, query]);
 
   const filtered = useMemo(() => {
-    return programs;
-  }, [programs]);
+    if (statusFilter === "Semua") {
+      return programs;
+    }
+    
+    return programs.filter(program => {
+      const progress = Math.min(100, Math.max(0, program.statistics?.persentase_selesai || 0));
+      const isCompleted = progress >= 100;
+      
+      if (statusFilter === "nonaktif") {
+        // Show programs that are either nonaktif in DB OR have 100% progress
+        return program.status === "nonaktif" || isCompleted;
+      } else if (statusFilter === "aktif") {
+        // Show only programs that are aktif in DB AND have NOT reached 100% progress
+        return program.status === "aktif" && !isCompleted;
+      }
+      
+      return true;
+    });
+  }, [programs, statusFilter]);
 
   const handleDetail = (programId) => {
     navigate(`/admin/programs/${programId}`);

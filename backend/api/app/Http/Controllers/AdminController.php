@@ -686,26 +686,32 @@ class AdminController extends Controller
             $query->where('status', '!=', 'ditolak');
         }, 'programBantuan.kategori'])->findOrFail($id);
         
-        // Add verified and completed recipient count to each program
+        // Add verified and completed recipient count to each program based on transaksi_penyaluran
         $donor->programBantuan->each(function ($program) {
-            $program->penerima_count = PenerimaProgram::join('penerima', 'penerima_program.id_penerima', '=', 'penerima.id_penerima')
-                ->where('penerima_program.id_program', $program->id_program)
-                ->where('penerima.status_verifikasi', 'disetujui')
-                ->where('penerima_program.status_penerimaan', 'selesai')
-                ->count();
+            // Count recipients who have transactions with status 'selesai' (verified by admin)
+            $program->penerima_tersalurkan = TransaksiPenyaluran::whereHas('penerimaProgram', function($q) use ($program) {
+                $q->where('id_program', $program->id_program);
+            })
+            ->where('status_penyaluran', 'selesai')
+            ->distinct('id_penerima_program')
+            ->count('id_penerima_program');
+            
+            // Total penerima in this program
+            $program->total_penerima = PenerimaProgram::where('id_program', $program->id_program)->count();
         });
         
-        // Add statistics (only count verified recipients with completed status)
+        // Add statistics (only count verified recipients with completed distributions)
         $programIds = $donor->programBantuan->pluck('id_program');
         $donor->statistics = [
             'total_programs' => $donor->programBantuan->count(),
             'active_programs' => $donor->programBantuan->where('status', 'aktif')->count(),
             'total_contribution' => $donor->programBantuan->sum('jumlah_bantuan'),
-            'total_recipients' => PenerimaProgram::join('penerima', 'penerima_program.id_penerima', '=', 'penerima.id_penerima')
-                ->whereIn('penerima_program.id_program', $programIds)
-                ->where('penerima.status_verifikasi', 'disetujui')
-                ->where('penerima_program.status_penerimaan', 'selesai')
-                ->count(),
+            'total_recipients' => TransaksiPenyaluran::whereHas('penerimaProgram', function($q) use ($programIds) {
+                $q->whereIn('id_program', $programIds);
+            })
+            ->where('status_penyaluran', 'selesai')
+            ->distinct('id_penerima_program')
+            ->count('id_penerima_program'),
         ];
 
         return response()->json([
@@ -1729,7 +1735,7 @@ class AdminController extends Controller
                 'file_type' => $file->getClientMimeType(),
                 'file_size' => $file->getSize(),
                 'tanggal_upload' => now(),
-                'uploaded_by' => auth()->user()->id_admin,
+                'uploaded_by' => $request->user()->id_admin,
             ]);
 
             return response()->json([

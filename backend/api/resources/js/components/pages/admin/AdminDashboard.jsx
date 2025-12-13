@@ -127,7 +127,7 @@ export default function AdminDashboard() {
 
         {/* Summary */}
         <section className="rounded-xl bg-green-100/70 border border-green-300 p-4 sm:p-6 mb-6">
-          <h2 className="text-center text-[#0B2B5E] font-semibold mb-4">Ringkasan Singkat Sistem</h2>
+          <h2 className="text-center text-[#0B2B5E] font-bold text-3xl mb-4">Ringkasan Singkat Sistem</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
               <div className="flex items-center gap-2 text-slate-800 font-semibold mb-2">
@@ -226,7 +226,7 @@ export default function AdminDashboard() {
         {/* Recent Activity Preview */}
         {!loading && dashboardData?.recent_programs && (
           <section className="mt-6">
-            <h3 className="text-center text-[#0B2B5E] font-semibold mb-4">Program Terbaru</h3>
+            <h3 className="text-center text-[#0B2B5E] font-bold text-3xl mb-4">Program Terbaru</h3>
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
               <div className="space-y-3">
                 {dashboardData.recent_programs.slice(0, 5).map((program) => (

@@ -260,6 +260,7 @@ export default function RecipientRegisterPage() {
                     }`}
                     value={formData.nomor_telepon}
                     onChange={handleChange}
+                    required
                   />
                 </div>
                 {errors.nomor_telepon && (
@@ -292,6 +293,7 @@ export default function RecipientRegisterPage() {
                     }`}
                     value={formData.alamat}
                     onChange={handleChange}
+                    required
                   />
                 </div>
                 {errors.alamat && (
@@ -354,6 +356,7 @@ export default function RecipientRegisterPage() {
                     }`}
                     value={formData.pekerjaan}
                     onChange={handleChange}
+                    required
                   >
                     <option value="">Pilih pekerjaan</option>
                     <option value="Tidak bekerja">Tidak bekerja</option>
@@ -376,6 +379,7 @@ export default function RecipientRegisterPage() {
                       className="w-full pl-4 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all text-sm"
                       value={customPekerjaan}
                       onChange={(e) => setCustomPekerjaan(e.target.value)}
+                      required
                     />
                   </div>
                 )}
@@ -406,6 +410,7 @@ export default function RecipientRegisterPage() {
                     }`}
                     value={formData.penghasilan}
                     onChange={handleChange}
+                    required
                   >
                     <option value="">Pilih penghasilan</option>
                     <option value="< Rp 500.000">&lt; Rp 500.000</option>
@@ -442,6 +447,7 @@ export default function RecipientRegisterPage() {
                     }`}
                     value={formData.pekerjaan_istri}
                     onChange={handleChange}
+                    required
                   >
                     <option value="">Pilih status pekerjaan istri</option>
                     <option value="Tidak bekerja">Tidak bekerja</option>
@@ -463,6 +469,7 @@ export default function RecipientRegisterPage() {
                       className="w-full pl-4 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all text-sm"
                       value={customPekerjaanIstri}
                       onChange={(e) => setCustomPekerjaanIstri(e.target.value)}
+                      required
                     />
                   </div>
                 )}
@@ -493,6 +500,7 @@ export default function RecipientRegisterPage() {
                     }`}
                     value={formData.status_anak}
                     onChange={handleChange}
+                    required
                   >
                     <option value="">Pilih status anak</option>
                     <option value="Tidak ada anak">Tidak ada anak</option>

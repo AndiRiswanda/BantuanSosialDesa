@@ -1,3 +1,5 @@
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from "react";
 import NavbarAdmin from "../../layout/NavbarAdmin";
 import { Check, Eye, Mail, MoreVertical, Search, ThumbsUp, ThumbsDown, UserX, ShieldCheck, Edit, Lock, Unlock, Trash2, X, AlertTriangle, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
@@ -305,7 +307,7 @@ export default function AdminVerificationDashboard() {
         {!loading && active === "pengajuan" && (
           <section className="mt-5">
             <div className="mb-2 flex items-center gap-2">
-              <span role="img" aria-label="sparkles">✨</span>
+              <span role="img" aria-label="application">📝</span>
               <h2 className="text-sm font-semibold">Verifikasi Pengajuan Penerima Baru</h2>
             </div>
             <div className="space-y-4">
@@ -331,7 +333,13 @@ export default function AdminVerificationDashboard() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 border border-amber-200">
+                            <span className={`rounded-full px-3 py-1 text-xs font-semibold border ${
+                              recipient.status_verifikasi === 'belum_mengajukan' ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                              recipient.status_verifikasi === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                              recipient.status_verifikasi === 'disetujui' || recipient.status_verifikasi === 'terverifikasi' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                              recipient.status_verifikasi === 'ditolak' ? 'bg-red-50 text-red-700 border-red-200' :
+                              'bg-slate-50 text-slate-700 border-slate-200'
+                            }`}>
                               {recipient.status_verifikasi === 'pending' ? 'Menunggu' : 
                                recipient.status_verifikasi === 'disetujui' ? 'Disetujui' :
                                recipient.status_verifikasi === 'ditolak' ? 'Ditolak' :
@@ -578,7 +586,8 @@ export default function AdminVerificationDashboard() {
                         <td className="px-3 py-2">{recipient.nomor_telepon || '-'}</td>
                         <td className="px-3 py-2">
                           <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
-                            recipient.status_verifikasi === 'terverifikasi' ? 'bg-emerald-100 text-emerald-700' : 
+                            recipient.status_verifikasi === 'terverifikasi' || recipient.status_verifikasi === 'disetujui' ? 'bg-emerald-100 text-emerald-700' : 
+                            recipient.status_verifikasi === 'belum_mengajukan' ? 'bg-orange-100 text-orange-600' :
                             recipient.status_verifikasi === 'pending' ? 'bg-amber-100 text-amber-700' :
                             'bg-red-100 text-red-700'
                           }`}>
