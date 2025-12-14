@@ -80,7 +80,7 @@ class AdminController extends Controller
                 ];
             });
 
-        // Monthly distribution trend (last 6 months)
+        // Distribusi tre
         $monthlyTrend = TransaksiPenyaluran::select(
                 DB::raw('DATE_FORMAT(tanggal_penyaluran, "%Y-%m") as bulan'),
                 DB::raw('COUNT(*) as jumlah'),
@@ -125,8 +125,8 @@ class AdminController extends Controller
             $query->where('nama_program', 'like', '%' . $request->search . '%');
         }
 
-        // Sorting
-        $sortField = $request->get('sort_by', 'tanggal_mulai');
+        // Sorting - default by updated_at to show recently changed/completed programs first
+        $sortField = $request->get('sort_by', 'updated_at');
         $sortOrder = $request->get('sort_order', 'desc');
         $query->orderBy($sortField, $sortOrder);
 
@@ -727,6 +727,7 @@ class AdminController extends Controller
         $validated = $request->validate([
             'nama_lengkap' => 'sometimes|string|max:100',
             'nama_organisasi' => 'nullable|string|max:150',
+            'email' => 'sometimes|email|max:100',
             'alamat' => 'nullable|string',
             'nomor_telepon' => 'nullable|string|max:15',
             'status' => 'sometimes|in:aktif,nonaktif',
@@ -828,6 +829,7 @@ class AdminController extends Controller
         
         $validated = $request->validate([
             'nama_kepala' => 'sometimes|string|max:100',
+            'no_kk' => 'sometimes|string|digits:16',
             'alamat' => 'nullable|string',
             'nomor_telepon' => 'nullable|string|max:15',
             'pekerjaan' => 'nullable|string|max:100',

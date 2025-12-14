@@ -48,10 +48,11 @@ class AuthController extends Controller
     public function loginRecipient(Request $request)
     {
         $request->validate([
-            'no_kk' => 'required|string',
+            'no_kk' => 'required|string|digits:16',
             'password' => 'required',
         ], [
             'no_kk.required' => 'Nomor KK harus diisi.',
+            'no_kk.digits' => 'Nomor KK harus 16 digit.',
             'password.required' => 'Password harus diisi.',
         ]);
 
@@ -118,7 +119,7 @@ class AuthController extends Controller
     public function registerRecipient(Request $request)
     {
         $request->validate([
-            'no_kk' => 'required|string|max:20|unique:penerima',
+            'no_kk' => 'required|string|digits:16|unique:penerima',
             'password' => 'required|string|min:8|confirmed',
             'nama_kepala' => 'required|string|max:100',
             'nomor_telepon' => 'nullable|string|max:15',
@@ -130,8 +131,8 @@ class AuthController extends Controller
             'penghasilan' => 'nullable|string|max:100',
         ], [
             'no_kk.required' => 'Nomor KK harus diisi.',
+            'no_kk.digits' => 'Nomor KK harus 16 digit.',
             'no_kk.unique' => 'Nomor KK sudah terdaftar. Silakan hubungi admin jika ada masalah.',
-            'no_kk.max' => 'Nomor KK maksimal 20 karakter.',
             'password.required' => 'Password harus diisi.',
             'password.min' => 'Password minimal 8 karakter.',
             'password.confirmed' => 'Konfirmasi password tidak cocok.',

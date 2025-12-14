@@ -463,7 +463,7 @@ class RecipientController extends Controller
         // Validate input
         $validated = $request->validate([
             'nama_kepala' => 'required|string|max:100',
-            'no_kk' => 'required|string|max:20',
+            'no_kk' => 'required|string|digits:16',
             'alamat' => 'required|string',
             'nomor_telepon' => 'required|string|max:15',
             'pekerjaan' => 'required|string|max:100',
