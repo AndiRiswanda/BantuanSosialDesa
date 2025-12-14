@@ -272,7 +272,7 @@ export default function VerifikasiPenyaluranPage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari Nama atau No. KK"
+                placeholder="Cari Nama atau Nomor KK"
                 className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
               />
             </div>
@@ -284,7 +284,7 @@ export default function VerifikasiPenyaluranPage() {
               <thead className="bg-emerald-600 text-white">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">No</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">No. KK</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Nomor KK</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Nama Penerima</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Alamat</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Penyaluran</th>

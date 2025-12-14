@@ -130,7 +130,10 @@ export default function AdminVerificationDashboard() {
   const [error, setError] = useState(null);
   
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [deleteType, setDeleteType] = useState(null); // 'donor' or 'recipient'
   const [actionLoading, setActionLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     loadData();
@@ -224,15 +227,19 @@ export default function AdminVerificationDashboard() {
     }
   };
 
-  const handleDeleteDonor = async (id) => {
-    if (!window.confirm('Apakah Anda yakin ingin menghapus donatur ini?')) return;
-    
+  const handleDeleteDonor = (id) => {
+    setConfirmDelete(id);
+    setDeleteType('donor');
+  };
+
+  const confirmDeleteDonor = async () => {
     try {
       setActionLoading(true);
-      await adminAPI.deleteDonor(id);
+      await adminAPI.deleteDonor(confirmDelete);
       loadData();
-      alert('Donatur berhasil dihapus');
       setConfirmDelete(null);
+      setSuccessMessage('Akun donatur berhasil dihapus');
+      setShowSuccess(true);
     } catch (err) {
       console.error("Error deleting donor:", err);
       alert(err.message || "Gagal menghapus donatur");
@@ -241,15 +248,22 @@ export default function AdminVerificationDashboard() {
     }
   };
 
-  const handleDeleteRecipient = async (id) => {
-    if (!window.confirm('Apakah Anda yakin ingin menghapus penerima ini?')) return;
-    
+  const handleDeleteRecipient = (id, source = 'general') => {
+    setConfirmDelete(id);
+    setDeleteType(source === 'verification' ? 'recipient-verification' : 'recipient');
+  };
+
+  const confirmDeleteRecipient = async () => {
     try {
       setActionLoading(true);
-      await adminAPI.deleteRecipient(id);
+      await adminAPI.deleteRecipient(confirmDelete);
       loadData();
-      alert('Penerima berhasil dihapus');
+      const message = deleteType === 'recipient-verification' 
+        ? 'Pengajuan penerima berhasil dihapus' 
+        : 'Penerima berhasil dihapus dari sistem';
       setConfirmDelete(null);
+      setSuccessMessage(message);
+      setShowSuccess(true);
     } catch (err) {
       console.error("Error deleting recipient:", err);
       alert(err.message || "Gagal menghapus penerima");
@@ -324,7 +338,7 @@ export default function AdminVerificationDashboard() {
                         <div className="flex items-start justify-between gap-4">
                           <div>
                             <h3 className="text-base font-semibold text-slate-800">{recipient.nama_kepala}</h3>
-                            <p className="text-xs text-slate-600">NIK/No. KK: {recipient.no_kk}</p>
+                            <p className="text-xs text-slate-600">Nomor KK: {recipient.no_kk}</p>
                             <p className="mt-1 text-xs text-slate-600">Alamat: {recipient.alamat || '-'}</p>
                             <div className="mt-2 inline-flex items-center gap-2">
                               <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 border border-emerald-200">
@@ -418,7 +432,7 @@ export default function AdminVerificationDashboard() {
                             <Edit className="w-4 h-4" /> Edit
                           </button>
                           <button 
-                            onClick={() => handleDeleteRecipient(recipient.id_penerima)}
+                            onClick={() => handleDeleteRecipient(recipient.id_penerima, 'verification')}
                             disabled={actionLoading}
                             className="inline-flex items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
                             title="Hapus Akun"
@@ -553,7 +567,7 @@ export default function AdminVerificationDashboard() {
                 <thead className="bg-slate-100">
                   <tr className="text-left text-slate-700">
                     <th className="px-3 py-2">Nama</th>
-                    <th className="px-3 py-2">No. KK</th>
+                    <th className="px-3 py-2">Nomor KK</th>
                     <th className="px-3 py-2">Alamat</th>
                     <th className="px-3 py-2">No. HP</th>
                     <th className="px-3 py-2">Status</th>
@@ -641,6 +655,78 @@ export default function AdminVerificationDashboard() {
           </section>
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-blue/50 p-4">
+          <div className="w-full max-w-md rounded-xl bg-[#afcfef] shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-600 px-4 py-3">
+              <div className="inline-flex items-center gap-2 text-sm font-semibold text-black">
+                <AlertTriangle className="w-4 h-4 text-yellow-500"/> 
+                {deleteType === 'donor' ? 'Konfirmasi Penghapusan Akun' : 'Konfirmasi Penghapusan Akun'}
+              </div>
+              <button onClick={() => setConfirmDelete(null)} disabled={actionLoading} className="text-slate-400 hover:text-white disabled:opacity-50">
+                <X className="w-5 h-5"/>
+              </button>
+            </div>
+            <div className="px-4 py-3 text-sm text-black space-y-2">
+              {deleteType === 'donor' ? (
+                <>
+                  <p>Apakah Anda yakin ingin menghapus akun ini?</p>
+                  <p>Tindakan ini akan menghapus seluruh data terkait pengguna dan tidak dapat dibatalkan.</p>
+                  <p className="text-black">Pastikan Anda telah meninjau data pengguna ini dengan benar sebelum melanjutkan.</p>
+                </>
+              ) : deleteType === 'recipient-verification' ? (
+                <>
+                  <p>Apakah Anda yakin ingin menghapus pengajuan penerima ini?</p>
+                  <p>Tindakan ini akan menghapus data pengajuan dan akun penerima dari sistem.</p>
+                  <p className="text-black">Pastikan Anda telah meninjau data pengajuan ini dengan benar sebelum melanjutkan.</p>
+                </>
+              ) : (
+                <>
+                  <p>Apakah Anda yakin ingin menghapus penerima ini?</p>
+                  <p>Tindakan ini akan menghapus seluruh data terkait pengguna dan tidak dapat dibatalkan.</p>
+                  <p className="text-black">Pastikan Anda telah meninjau data pengguna ini dengan benar sebelum melanjutkan.</p>
+                </>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 border-t border-black px-4 py-3">
+              <button 
+                onClick={() => setConfirmDelete(null)} 
+                disabled={actionLoading} 
+                className="rounded-md border border-emerald-500 bg-white px-4 py-2 text-sm font-medium text-black hover:bg-slate-200 disabled:opacity-50"
+              >
+                Batalkan
+              </button>
+              <button 
+                onClick={deleteType === 'donor' ? confirmDeleteDonor : confirmDeleteRecipient} 
+                disabled={actionLoading} 
+                className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {actionLoading ? 'Menghapus...' : 'Ya, Hapus'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Toast */}
+      {showSuccess && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-blue/50 p-4">
+          <div className="w-full max-w-sm rounded-xl bg-[#afcfef] shadow-2xl p-6 text-center">
+            <div className="mx-auto w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center mb-4">
+              <Check className="w-7 h-7 text-emerald-400" />
+            </div>
+            <h3 className="text-black font-semibold mb-2">{successMessage}</h3>
+            <button 
+              onClick={() => setShowSuccess(false)} 
+              className="mt-4 px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

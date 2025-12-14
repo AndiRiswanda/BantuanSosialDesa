@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import NavbarRecipient from "../../layout/NavbarRecipient";
@@ -467,7 +468,7 @@ export default function RecipientApplication() {
                   // validate KK number: should have exactly 16 digits (ignore non-digits)
                   const digits = (kkNumber || "").replace(/\D/g, "");
                   if (digits.length !== 16) {
-                    setKkError("No. KK harus terdiri dari 16 digit");
+                    setKkError("Nomor KK harus terdiri dari 16 digit");
                     return;
                   }
                   setKkError("");

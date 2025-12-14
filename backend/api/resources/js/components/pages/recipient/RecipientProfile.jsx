@@ -314,7 +314,7 @@ export default function RecipientProfile() {
                   <div>
                     <h1 className="text-xl font-bold mb-0.5">{profileData.nama_kepala || 'N/A'}</h1>
                     <p className="text-sm opacity-90">Kepala Keluarga</p>
-                    <p className="text-sm opacity-90">No. KK : {maskedKK}</p>
+                    <p className="text-sm opacity-90">Nomor KK : {maskedKK}</p>
                     {profileData.status_verifikasi === 'disetujui' && (
                       <div className="mt-2 inline-flex items-center gap-1 bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full text-xs">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

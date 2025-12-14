@@ -120,10 +120,10 @@ export default function AdminProfile() {
             <div className="flex items-center gap-4">
               <div className="grid h-16 w-16 place-items-center rounded-full bg-white/20 text-xl font-bold">{initials}</div>
               <div>
-                <div className="text-lg font-semibold">{admin.full_name || "Admin"}</div>
-                <div className="text-white/90 text-sm">Admin</div>
-                <div className="text-white/90 text-xs">Username : {admin.username || "-"}</div>
-                <div className="text-white/90 text-xs">Telepon : {admin.nomor_telepon || "-"}</div>
+                <div className="text-2xl font-extrabold">{admin.full_name || "Admin"}</div>
+                <div className="text-white/90 text-base font-semibold">Admin</div>
+                <div className="text-white/90 text-base font-semibold">Username : {admin.username || "-"}</div>
+                <div className="text-white/90 text-base font-semibold">Telepon : {admin.nomor_telepon || "-"}</div>
               </div>
             </div>
           </div>
@@ -148,18 +148,25 @@ export default function AdminProfile() {
 
         {/* logout confirm */}
         {openLogout && (
-          <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true">
-            <div className="w-full max-w-md rounded-xl bg-white shadow-lg">
-              <div className="flex items-center justify-between border-b px-4 py-3">
-                <div className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700"><UserCircle2 className="w-4 h-4 text-emerald-600"/> Konfirmasi Keluar Akun</div>
-                <button onClick={() => setOpenLogout(false)} className="text-slate-500 hover:text-slate-700" aria-label="Tutup"><X className="w-5 h-5"/></button>
-              </div>
-              <div className="px-4 py-3 text-sm text-slate-700 space-y-3">
-                <p>Apakah Anda yakin ingin keluar dari akun ini? Setelah keluar, untuk melanjutkan admin harus login kembali untuk mengakses sistem.</p>
-              </div>
-              <div className="flex justify-end gap-2 border-t px-4 py-3">
-                <button onClick={() => setOpenLogout(false)} className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Batal</button>
-                <button onClick={handleLogout} className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">Keluar</button>
+          <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4">
+            <div className="w-full max-w-md rounded-xl bg-[#afcfef] shadow-2xl p-6">
+              <h3 className="text-black font-semibold text-lg mb-3 inline-flex items-center gap-2"><LogOut className="w-5 h-5 text-emerald-600"/> Konfirmasi Keluar Akun</h3>
+              <p className="text-black text-sm mb-6">
+                Apakah Anda yakin ingin keluar dari akun ini? Semua sesi aktif akan ditutup dan Anda harus login kembali untuk mengakses sistem.
+              </p>
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setOpenLogout(false)}
+                  className="flex-1 px-4 py-2 border border-emerald-500 bg-slate-200 hover:bg-slate-300 text-black rounded-lg text-sm font-semibold"
+                >
+                  Batal
+                </button>
+                <button 
+                  onClick={handleLogout}
+                  className="flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold"
+                >
+                  Keluar
+                </button>
               </div>
             </div>
           </div>
