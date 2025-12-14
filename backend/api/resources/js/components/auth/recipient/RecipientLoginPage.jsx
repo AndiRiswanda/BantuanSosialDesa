@@ -93,7 +93,7 @@ export default function RecipientLoginPage() {
               {/* No. KK */}
               <div>
                 <label htmlFor="noKK" className="block text-sm font-semibold text-gray-700 mb-2">
-                  No. KK
+                  Nomor KK
                 </label>
                 <div className="relative">
                   <svg
@@ -107,7 +107,7 @@ export default function RecipientLoginPage() {
                   <input
                     id="noKK"
                     type="text"
-                    placeholder="Masukkan No. KK Anda"
+                    placeholder="Masukkan Nomor KK Anda"
                     className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all text-sm"
                     value={noKK}
                     onChange={(e) => setNoKK(e.target.value)}

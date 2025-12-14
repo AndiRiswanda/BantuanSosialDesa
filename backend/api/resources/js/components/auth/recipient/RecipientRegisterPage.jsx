@@ -30,10 +30,38 @@ export default function RecipientRegisterPage() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: name === 'jumlah_tanggungan' ? parseInt(value) || 0 : value
-    }));
+    
+    // Filter only digits for no_kk
+    if (name === 'no_kk') {
+      const digitsOnly = value.replace(/\D/g, '');
+      setFormData(prev => ({
+        ...prev,
+        [name]: digitsOnly
+      }));
+    }
+    // Filter only letters and spaces for nama_kepala
+    else if (name === 'nama_kepala') {
+      const lettersOnly = value.replace(/[^a-zA-Z\s]/g, '');
+      setFormData(prev => ({
+        ...prev,
+        [name]: lettersOnly
+      }));
+    }
+    // Filter only digits for nomor_telepon
+    else if (name === 'nomor_telepon') {
+      const digitsOnly = value.replace(/\D/g, '');
+      setFormData(prev => ({
+        ...prev,
+        [name]: digitsOnly
+      }));
+    }
+    else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: name === 'jumlah_tanggungan' ? parseInt(value) || 0 : value
+      }));
+    }
+    
     // Clear custom input if user changes selection from "Lainnya"
     if (name === 'pekerjaan' && value !== 'Lainnya') {
       setCustomPekerjaan('');
@@ -190,7 +218,8 @@ export default function RecipientRegisterPage() {
                     id="nama_kepala"
                     name="nama_kepala"
                     type="text"
-                    placeholder="Masukkan nama kepala keluarga"
+                    pattern="[a-zA-Z\s]*"
+                    placeholder="Masukkan nama kepala keluarga (hanya huruf)"
                     className={`w-full pl-11 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all text-sm ${
                       errors.nama_kepala ? 'border-red-300 bg-red-50' : 'border-gray-300'
                     }`}
@@ -207,7 +236,7 @@ export default function RecipientRegisterPage() {
               {/* No. KK */}
               <div>
                 <label htmlFor="no_kk" className="block text-sm font-semibold text-gray-700 mb-2">
-                  No. KK
+                  Nomor KK
                 </label>
                 <div className="relative">
                   <svg
@@ -222,7 +251,10 @@ export default function RecipientRegisterPage() {
                     id="no_kk"
                     name="no_kk"
                     type="text"
-                    placeholder="Masukkan No. KK Anda"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength="16"
+                    placeholder="Masukkan Nomor KK Anda (16 digit)"
                     className={`w-full pl-11 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all text-sm ${
                       errors.no_kk ? 'border-red-300 bg-red-50' : 'border-gray-300'
                     }`}
@@ -254,7 +286,10 @@ export default function RecipientRegisterPage() {
                     id="nomor_telepon"
                     name="nomor_telepon"
                     type="tel"
-                    placeholder="Masukkan nomor telepon Anda"
+                    inputMode="numeric"
+                    pattern="08[0-9]*"
+                    maxLength="15"
+                    placeholder="Masukkan nomor telepon (08xxxxxxxxxx)"
                     className={`w-full pl-11 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all text-sm ${
                       errors.nomor_telepon ? 'border-red-300 bg-red-50' : 'border-gray-300'
                     }`}
