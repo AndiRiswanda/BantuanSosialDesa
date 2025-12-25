@@ -380,7 +380,7 @@ export default function DonorProgramDetail() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left">
-                      {["No","No. KK","Nama Penerima","Alamat","Status Penyaluran"].map((h) => (
+                      {["No","Nomor KK","Nama Penerima","Alamat","Status Penyaluran"].map((h) => (
                         <th key={h} className="bg-green-200/60 text-[#0B2B5E] font-semibold px-3 py-2 border border-green-300 first:rounded-l-lg last:rounded-r-lg">{h}</th>
                       ))}
                     </tr>

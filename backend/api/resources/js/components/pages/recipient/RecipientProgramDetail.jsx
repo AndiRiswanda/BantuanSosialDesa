@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import NavbarRecipient from "../../layout/NavbarRecipient";
@@ -347,7 +348,7 @@ export default function RecipientProgramDetail() {
                       <thead>
                         <tr className="bg-emerald-50 text-slate-800">
                           <th className="px-3 py-2 text-left rounded-l-lg">No</th>
-                          <th className="px-3 py-2 text-left">No. KK</th>
+                          <th className="px-3 py-2 text-left">Nomor KK</th>
                           <th className="px-3 py-2 text-left">Nama Penerima</th>
                           <th className="px-3 py-2 text-left">Alamat</th>
                           <th className="px-3 py-2 text-left rounded-r-lg">Status</th>

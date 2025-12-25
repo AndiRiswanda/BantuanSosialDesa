@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import NavbarAdmin from "../../layout/NavbarAdmin";
-import { ArrowLeft, Save, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Save, Loader2, AlertCircle, CheckCircle2, X } from "lucide-react";
 import { adminAPI } from "../../../utils/api";
 
 export default function AdminProgramEdit() {
@@ -14,6 +14,8 @@ export default function AdminProgramEdit() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [confirm, setConfirm] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   
   const [form, setForm] = useState({
     nama_program: "",
@@ -77,9 +79,12 @@ export default function AdminProgramEdit() {
     setForm(prev => ({ ...prev, [field]: e.target.value }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    
+    setConfirm(true);
+  };
+
+  const onConfirm = async () => {
     try {
       setSaving(true);
       setError(null);
@@ -87,10 +92,11 @@ export default function AdminProgramEdit() {
       const response = await adminAPI.updateProgram(id, form);
       
       if (response.success) {
-        setSuccess(true);
+        setConfirm(false);
+        setShowSuccess(true);
         setTimeout(() => {
           navigate(`/admin/programs/${id}`);
-        }, 1500);
+        }, 2000);
       }
     } catch (err) {
       console.error("Error updating program:", err);
@@ -361,6 +367,40 @@ export default function AdminProgramEdit() {
             </button>
           </div>
         </form>
+
+        {confirm && (
+          <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4">
+            <div className="w-full max-w-md rounded-xl bg-[#2D3748] shadow-2xl">
+              <div className="flex items-center justify-between border-b border-slate-600 px-4 py-3">
+                <div className="inline-flex items-center gap-2 text-sm font-semibold text-white"><CheckCircle2 className="w-4 h-4 text-emerald-400"/> Simpan Perubahan Data?</div>
+                <button onClick={() => setConfirm(false)} disabled={saving} className="text-slate-400 hover:text-white disabled:opacity-50"><X className="w-5 h-5"/></button>
+              </div>
+              <div className="px-4 py-3 text-sm text-slate-200 space-y-2">
+                <p>Apakah Anda yakin ingin menyimpan perubahan pada data ini?</p>
+                <p>Pastikan semua informasi yang diperbarui sudah benar sebelum disimpan.</p>
+                <p className="text-slate-400">Mohon periksa kembali agar tidak ada kesalahan input.</p>
+              </div>
+              <div className="flex justify-end gap-2 border-t border-slate-600 px-4 py-3">
+                <button onClick={() => setConfirm(false)} disabled={saving} className="rounded-md border border-slate-500 bg-slate-600 px-4 py-2 text-sm font-medium text-white hover:bg-slate-500 disabled:opacity-50">Batalkan</button>
+                <button onClick={onConfirm} disabled={saving} className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">
+                  {saving ? 'Menyimpan...' : 'Simpan Perubahan'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showSuccess && (
+          <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4">
+            <div className="w-full max-w-sm rounded-xl bg-[#2D3748] shadow-2xl p-6 text-center">
+              <div className="mx-auto w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center mb-4">
+                <CheckCircle2 className="w-7 h-7 text-emerald-400" />
+              </div>
+              <h3 className="text-white font-semibold mb-2">Data program berhasil diperbarui</h3>
+              <button onClick={() => setShowSuccess(false)} className="mt-4 px-6 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg text-sm font-semibold">OK</button>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

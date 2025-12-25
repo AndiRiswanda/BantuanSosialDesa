@@ -4,7 +4,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import NavbarAdmin from "../../layout/NavbarAdmin";
-import { ArrowLeft, Calendar as CalendarIcon, Info, Upload, Search, Loader2 } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, Info, Upload, Search, Loader2, CheckCircle2, X } from "lucide-react";
 import { adminAPI } from "../../../utils/api";
 
 function Chip({ children, className = "" }) {
@@ -34,6 +34,7 @@ function UploadModal({ open, onClose, programId = null, programName = '' }) {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [loadingPrograms, setLoadingPrograms] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {
     if (open && !programId) {
@@ -77,12 +78,15 @@ function UploadModal({ open, onClose, programId = null, programName = '' }) {
       const response = await adminAPI.uploadDokumentasi(formData);
       
       if (response.success) {
-        alert('Dokumentasi berhasil diupload!');
+        setShowSuccess(true);
         setJudul('');
         setDeskripsi('');
         setFile(null);
         setSelectedProgram(programId || '');
-        onClose(true); // Pass true to indicate success
+        setTimeout(() => {
+          setShowSuccess(false);
+          onClose(true); // Pass true to indicate success
+        }, 2000);
       } else {
         alert('Gagal mengupload dokumentasi: ' + (response.message || 'Unknown error'));
       }
@@ -232,6 +236,27 @@ function UploadModal({ open, onClose, programId = null, programName = '' }) {
           </div>
         </div>
       </div>
+
+      {/* Success Toast */}
+      {showSuccess && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-blue/50 p-4" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-sm rounded-xl bg-[#afcfef] shadow-2xl p-6 text-center">
+            <div className="mx-auto w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center mb-4">
+              <CheckCircle2 className="w-7 h-7 text-emerald-400" />
+            </div>
+            <h3 className="text-black font-semibold mb-2">Dokumentasi berhasil diupload!</h3>
+            <button 
+              onClick={() => {
+                setShowSuccess(false);
+                onClose(true);
+              }} 
+              className="mt-4 px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -253,6 +278,10 @@ export default function AdminDistributionVerify() {
   const pageSize = 10;
   const containerRef = useRef(null);
   const [openUpload, setOpenUpload] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [docToDelete, setDocToDelete] = useState(null);
 
   useEffect(() => {
     loadProgramData();
@@ -354,7 +383,8 @@ export default function AdminDistributionVerify() {
       if (response.success) {
         // Reload data to reflect changes
         await loadProgramData();
-        alert(`Status berhasil diubah menjadi ${newStatus === 'selesai' ? 'Selesai' : 'Menunggu'}`);
+        setSuccessMessage(`Status berhasil diubah menjadi ${newStatus === 'selesai' ? 'Selesai' : 'Menunggu'}`);
+        setShowSuccess(true);
       } else {
         alert('Gagal mengubah status: ' + (response.message || 'Unknown error'));
       }
@@ -603,7 +633,7 @@ export default function AdminDistributionVerify() {
             <div className="mt-3">
               <div className="relative">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                <input value={query} onChange={(e)=>setQuery(e.target.value)} placeholder="Cari Nama atau No. KK" className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm" />
+                <input value={query} onChange={(e)=>setQuery(e.target.value)} placeholder="Cari Nama atau Nomor KK" className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm" />
               </div>
             </div>
 
@@ -612,7 +642,7 @@ export default function AdminDistributionVerify() {
                 <thead className="bg-emerald-700 text-white">
                   <tr>
                     <th className="px-3 py-2 text-left">No</th>
-                    <th className="px-3 py-2 text-left">No. KK</th>
+                    <th className="px-3 py-2 text-left">Nomor KK</th>
                     <th className="px-3 py-2 text-left">Nama Penerima</th>
                     <th className="px-3 py-2 text-left">Alamat</th>
                     <th className="px-3 py-2 text-left">Penyaluran</th>
@@ -735,16 +765,9 @@ export default function AdminDistributionVerify() {
                           Lihat
                         </a>
                         <button
-                          onClick={async () => {
-                            if (confirm('Hapus dokumentasi ini?')) {
-                              try {
-                                await adminAPI.deleteDokumentasi(doc.id);
-                                alert('Dokumentasi berhasil dihapus');
-                                loadProgramData();
-                              } catch (error) {
-                                alert('Gagal menghapus dokumentasi');
-                              }
-                            }
+                          onClick={() => {
+                            setDocToDelete(doc);
+                            setShowDeleteConfirm(true);
                           }}
                           className="px-3 py-1.5 bg-red-600 text-white text-xs rounded hover:bg-red-700"
                         >
@@ -771,6 +794,108 @@ export default function AdminDistributionVerify() {
           programId={id}
           programName={program?.nama_program}
         />
+
+        {/* Delete Confirmation Dialog */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4">
+            <div className="w-full max-w-sm rounded-xl bg-[#2D3748] shadow-2xl p-6">
+              <h3 className="text-white font-semibold text-lg mb-2">Hapus Dokumentasi</h3>
+              <p className="text-slate-300 text-sm mb-6">
+                Apakah Anda yakin ingin menghapus dokumentasi ini?
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button 
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setDocToDelete(null);
+                  }}
+                  className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg text-sm font-semibold"
+                >
+                  Batal
+                </button>
+                <button 
+                  onClick={async () => {
+                    try {
+                      await adminAPI.deleteDokumentasi(docToDelete.id);
+                      setShowDeleteConfirm(false);
+                      setDocToDelete(null);
+                      setSuccessMessage('Dokumentasi berhasil dihapus');
+                      setShowSuccess(true);
+                      await loadProgramData();
+                    } catch (error) {
+                      setShowDeleteConfirm(false);
+                      setDocToDelete(null);
+                      alert('Gagal menghapus dokumentasi');
+                    }
+                  }}
+                  className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg text-sm font-semibold"
+                >
+                  Hapus
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Dialog */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 z-50 grid place-items-center bg-blue/50 p-4">
+            <div className="w-full max-w-sm rounded-xl bg-[#afcfef] shadow-2xl p-6">
+              <h3 className="text-black font-semibold text-lg mb-2">Hapus Dokumentasi</h3>
+              <p className="text-black text-sm mb-6">
+                Apakah Anda yakin ingin menghapus dokumentasi ini?
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button 
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setDocToDelete(null);
+                  }}
+                  className="px-4 py-2 border border-emerald-500 bg-white hover:bg-slate-200 text-black rounded-lg text-sm font-semibold"
+                >
+                  Batal
+                </button>
+                <button 
+                  onClick={async () => {
+                    try {
+                      await adminAPI.deleteDokumentasi(docToDelete.id);
+                      setShowDeleteConfirm(false);
+                      setDocToDelete(null);
+                      setSuccessMessage('Dokumentasi berhasil dihapus');
+                      setShowSuccess(true);
+                      await loadProgramData();
+                    } catch (error) {
+                      setShowDeleteConfirm(false);
+                      setDocToDelete(null);
+                      alert('Gagal menghapus dokumentasi');
+                    }
+                  }}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold"
+                >
+                  Hapus
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Success Toast */}
+        {showSuccess && (
+          <div className="fixed inset-0 z-50 grid place-items-center bg-blue/50 p-4">
+            <div className="w-full max-w-sm rounded-xl bg-[#afcfef] shadow-2xl p-6 text-center">
+              <div className="mx-auto w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center mb-4">
+                <CheckCircle2 className="w-7 h-7 text-emerald-400" />
+              </div>
+              <h3 className="text-black font-semibold mb-2">{successMessage}</h3>
+              <button 
+                onClick={() => setShowSuccess(false)} 
+                className="mt-4 px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
